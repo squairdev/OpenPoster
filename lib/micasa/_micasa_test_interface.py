@@ -19,8 +19,10 @@ from PySide6.QtGui import (
 )
 import os
 import sys
+import xml.etree.ElementTree as et
+import xml.dom.minidom as minidom
 
-from micasa import XmlGenerator
+from micasa import XmlGenerator as XmlGen
 
 # app
 class MainWindow(QMainWindow):
@@ -28,6 +30,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Micasa test ui")
         self.setFixedSize(QSize(800, 600))
+        self.XmlGen = XmlGen()
 
         self.base_path = os.path.dirname(__file__)
         self.icon_path = os.path.abspath(os.path.join(self.base_path, "..", "..", "assets", "openposter.ico"))
@@ -59,11 +62,11 @@ class MainWindow(QMainWindow):
 
         # make xml inputs
         self.mxinput_startframe = QLineEdit(self)
-        self.mxinput_startframe.setPlaceholderText("Starting frame number")
+        self.mxinput_startframe.setPlaceholderText("Starting frame number (Required)")
         mx_group_layout.addWidget(self.mxinput_startframe)
 
         self.mxinput_endframe = QLineEdit(self)
-        self.mxinput_endframe.setPlaceholderText("Ending frame number")
+        self.mxinput_endframe.setPlaceholderText("Ending frame number (Required)")
         mx_group_layout.addWidget(self.mxinput_endframe)
 
         self.mxinput_fileprefix = QLineEdit(self)
@@ -71,22 +74,22 @@ class MainWindow(QMainWindow):
         mx_group_layout.addWidget(self.mxinput_fileprefix)
 
         self.mxinput_fileextension = QLineEdit(self)
-        self.mxinput_fileextension.setPlaceholderText("File extension (e.g. .png, .jpg)")
+        self.mxinput_fileextension.setPlaceholderText("File extension (Required. e.g. .png, .jpg)")
         mx_group_layout.addWidget(self.mxinput_fileextension)
 
         self.mxinput_padding = QLineEdit(self)
-        self.mxinput_padding.setPlaceholderText("Padding (e.g. 0001 will be 4)")
+        self.mxinput_padding.setPlaceholderText("Padding (Required. e.g. 0001 will be 4)")
         mx_group_layout.addWidget(self.mxinput_padding)
 
         self.mxinput_fps = QLineEdit(self)
-        self.mxinput_fps.setPlaceholderText("FPS (e.g. 24, 30, 60)")
+        self.mxinput_fps.setPlaceholderText("FPS (Required. e.g. 24, 30, 60)")
         mx_group_layout.addWidget(self.mxinput_fps)
 
         self.mxinput_exportasanimation = QCheckBox("Export as animation object")
         mx_group_layout.addWidget(self.mxinput_exportasanimation)
 
-        self.mxinput_exportasanimation = QCheckBox("Include <root> tag")
-        mx_group_layout.addWidget(self.mxinput_exportasanimation)
+        self.mxinput_withroot = QCheckBox("Include <root> tag")
+        mx_group_layout.addWidget(self.mxinput_withroot)
 
         # layout first
         button_layout = QHBoxLayout()
@@ -98,19 +101,63 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(mx_group, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignTop)
 
         # make xml commands
-        self.mx_generate_button = QPushButton("Generate", self)
-        self.mx_generate_button.setFixedSize(150, 30)
-        button_layout.addWidget(self.mx_generate_button)
+        #self.mx_generate_button = QPushButton("Generate", self)
+        #self.mx_generate_button.setFixedSize(150, 30)
+        #button_layout.addWidget(self.mx_generate_button)
 
         self.mx_preview_button = QPushButton("Preview", self)
         self.mx_preview_button.setFixedSize(150, 30)
         button_layout.addWidget(self.mx_preview_button)
+
+        self.mx_preview_button.clicked.connect(self.previewXmlData)
 
         mx_group_layout.addLayout(button_layout)
 
         # finalize
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
+    # checking and stuff
+    def previewXmlData(self):
+        start_frame = self.mxinput_startframe.text()
+        end_frame = self.mxinput_endframe.text()
+        file_prefix = self.mxinput_fileprefix.text()
+        file_extension = self.mxinput_fileextension.text()
+        padding = self.mxinput_padding.text()
+        export_as_animation = self.mxinput_exportasanimation.isChecked()
+        fps = self.mxinput_fps.text()
+        with_root = self.mxinput_withroot.isChecked()
+
+        # int check for everything
+        def toInt(value, name):
+            try:
+                return int(value)
+            except ValueError:
+                raise ValueError(f"{name} is not an int ({value})")
+            
+        try:
+            start_frame = toInt(start_frame, "sf")
+            end_frame = toInt(end_frame, "ef")
+            padding = toInt(padding, "pad")
+            fps = toInt(fps, "fps")
+        except ValueError as e:
+            print(e)
+            return
+
+        data = self.XmlGen.make_xml(
+            startFrame=start_frame,
+            endFrame=end_frame,
+            filePrefix=file_prefix,
+            fileExtension=file_extension,
+            padding=padding,
+            exportAsAnimation=export_as_animation,
+            fps=fps,
+            withRoot=with_root
+        )
+        
+        xml_str = et.tostring(data.getroot(), 'utf-8')
+        formatted = minidom.parseString(xml_str).toprettyxml("\t")
+        print(formatted)
 
 
 # central loader
