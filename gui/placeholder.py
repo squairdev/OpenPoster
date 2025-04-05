@@ -18,11 +18,9 @@ class MainWindow(QMainWindow):
 
     def openFile(self):
         if sys.platform == "darwin":
-            self.cafilepath = QFileDialog.getOpenFileName(self, "Select File", "", "Core Animation Files (*.ca)")[
-                0]
+            self.cafilepath = QFileDialog.getOpenFileName(self, "Select File", "", "Core Animation Files (*.ca)")
         else:
-            self.cafilepath = QFileDialog.getExistingDirectory(
-                self, "Select Folder", "")[0]
+            self.cafilepath = QFileDialog.getExistingDirectory(self, "Select Folder", "")
         self.ui.filename.setText(self.cafilepath)
         self.cafile = CAFile(self.cafilepath)
 
