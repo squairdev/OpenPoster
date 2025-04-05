@@ -73,6 +73,15 @@
                 <integer value="0"/>
               </values>
             </animation>
+            <animation type="CAMatchMoveAnimation" additive="1" targetsSuperlayer="1" usesNormalizedCoordinates="1" beginTime="1e-100" duration="1" removedOnCompletion="0">
+              <sourceLayer object="#1"/>
+              <sourcePoints>
+                <CGPoint value="0 0"/>
+                <CGPoint value="0 0"/>
+                <CGPoint value="0 0"/>
+              </sourcePoints>
+              <animationType/>
+            </animation>
           </animations>
     </CALayer>
       </sublayers>

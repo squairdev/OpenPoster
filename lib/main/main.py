@@ -6,6 +6,18 @@ class CGImage:
     def __init__(self, src):
         self.src = src
 
+class CGPoint:
+    def __init__(self, element):
+        self.element = element
+        self.type = self.element.tag.replace("{http://www.apple.com/CoreAnimation/1.0}","")
+        self.value = self.element.get("value")
+
+    def create(self):
+        e = ET.Element(self.type)
+        e.set("value", self.value)
+
+        return e
+
 class LKStateSetValue:
     def __init__(self, element):
         self.element = element
@@ -72,6 +84,58 @@ class CASpringAnimation(CAAnimation):
         e.set("duration",self.duration)
         e.set("fillMode",self.fillMode)
         e.set("mica_autorecalculatesDuration",self.micarecalc) # TODO: check if this is necessary
+
+        return e
+
+class CAMatchMoveAnimation(CAAnimation):
+    def __init__(self, element):
+        self.element                   = element
+        self.tag                       = self.element.tag.replace("{http://www.apple.com/CoreAnimation/1.0}","")
+        self.type                      = "CAMatchMoveAnimation"
+        self.additive                  = self.element.get("additive")
+        self.appliesX                  = self.element.get("appliesX", "1")
+        self.appliesY                  = self.element.get("appliesY", "1")
+        self.appliesScale              = self.element.get("appliesScale", "1")
+        self.targetsSuperlayer         = self.element.get("targetsSuperlayer")
+        self.usesNormalizedCoordinates = self.element.get("usesNormalizedCoordinates")
+        
+        self.sourceLayer = None
+        self._sourceLayer = self.element.find("{http://www.apple.com/CoreAnimation/1.0}sourceLayer")
+        if self._sourceLayer != None:
+            self.sourceLayer = self._sourceLayer
+
+        self.sourcePoints = []
+        self._sourcePoints = self.element.find("{http://www.apple.com/CoreAnimation/1.0}sourcePoints")
+        if self._sourcePoints != []:
+            for sourcePoint in self._sourcePoints:
+                self.sourcePoints.append(CGPoint(sourcePoint))
+
+        self.animationType = None
+        self._animationType = self.element.find("{http://www.apple.com/CoreAnimation/1.0}animationType")
+        if self._animationType != None:
+            self.animationType = self._animationType
+
+    def create(self):
+        e = ET.Element(self.tag)
+        e.set("type", self.type)
+        e.set("additive", self.additive)
+        e.set("appliesX", self.appliesX)
+        e.set("appliesY", self.appliesY)
+        e.set("appliesScale", self.appliesScale)
+        e.set("targetsSuperLayer", self.targetsSuperlayer)
+        e.set("usesNormalizedCoordinates", self.usesNormalizedCoordinates)
+
+        if self.sourceLayer != None:
+            sourceLayer = ET.SubElement(e, "sourceLayer")
+            sourceLayer.set("object", self.sourceLayer.get("object"))
+
+        if self.sourcePoints != []:
+            sourcePoints = ET.SubElement(e, "sourcePoints")
+            for sourcePoint in self.sourcePoints:
+                sourcePoints.append(sourcePoint.create())
+
+        if self.animationType != None:
+            animationType = ET.SubElement(e, "animationType")
 
         return e
 
@@ -237,6 +301,8 @@ class CALayer:
             for animation in self._animations:
                 if animation.get("type") == "CAKeyframeAnimation":
                     self.animations.append(CAKeyframeAnimation(animation))
+                if animation.get("type") == "CAMatchMoveAnimation":
+                    self.animations.append(CAMatchMoveAnimation(animation))
 
 
 
