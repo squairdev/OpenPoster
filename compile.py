@@ -7,12 +7,14 @@ args = [
     '--onedir',
     '--noconfirm',
     '--name=OpenPoster',
-    '--icon=assets/openposter.icns',
     '--optimize=2'
 ]
 
 if platform == "darwin":
     # add --windowed arg for macOS
     args.append('--windowed')
+    args.append('--icon=assets/openposter.icns')
+elif platform == "win32":
+    args.append('--icon=assets/openposter.ico')
 
 PyInstaller.__main__.run(args)
