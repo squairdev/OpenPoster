@@ -17,8 +17,12 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
 
     def openFile(self):
-        self.cafilepath = QFileDialog.getOpenFileName(self, "Select File", "", "Core Animation Files (*.ca)")[
-            0]
+        if sys.platform == "darwin":
+            self.cafilepath = QFileDialog.getOpenFileName(self, "Select File", "", "Core Animation Files (*.ca)")[
+                0]
+        else:
+            self.cafilepath = QFileDialog.getExistingDirectory(
+                self, "Select Folder", "")[0]
         self.ui.filename.setText(self.cafilepath)
         self.cafile = CAFile(self.cafilepath)
 
