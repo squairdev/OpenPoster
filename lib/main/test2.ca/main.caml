@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<caml xmlns="http://www.apple.com/CoreAnimation/1.0">
+  <CALayer id="#1" allowsEdgeAntialiasing="1" allowsGroupOpacity="1" bounds="0 0 390 844" contentsFormat="RGBA8" cornerCurve="circular" geometryFlipped="1" hidden="0" masksToBounds="0" name="Root Layer" opacity="1" position="195 422">
+    <sublayers>
+      <CALayer id="Background" allowsEdgeAntialiasing="1" allowsGroupOpacity="1" anchorPoint="0 0" backgroundColor="0.102 0.102 0.102" bounds="0 0 1125.571182250977 1689.016540527344" contentsFormat="RGBA8" cornerCurve="circular" geometryFlipped="0" hidden="0" masksToBounds="0" name="Background" position="-84 0" transform="scale(0.5, 0.5, 1)">
+    <contents type="CGImage" src="assets/83593.png"/>
+      </CALayer>
+      <CALayer id="Background 1" allowsEdgeAntialiasing="1" allowsGroupOpacity="1" anchorPoint="0 0" backgroundColor="0.102 0.102 0.102" bounds="0 0 1125.571182250977 1689.016540527344" contentsFormat="RGBA8" cornerCurve="circular" geometryFlipped="0" hidden="0" masksToBounds="0" name="Background 1" position="-84 0" transform="scale(0.5, 0.5, 1)">
+    <contents type="CGImage" src="assets/1810440.jpg"/>
+      </CALayer>
+      <CALayer id="KANYE WEST" allowsEdgeAntialiasing="1" allowsGroupOpacity="1" bounds="0 0 217 117" contentsFormat="RGBA8" cornerCurve="circular" geometryFlipped="0" hidden="0" masksToBounds="0" name="KANYE WEST" position="194 488.5">
+          <contents type="CGImage" src="assets/KANYE WEST.png"/>
+          <animations>
+            <p key="animation-2" type="CAKeyframeAnimation" calculationMode="cubic" keyPath="transform.scale" beginTime="1e-100" duration="3" fillMode="both" removedOnCompletion="0" repeatCount="inf" speed="1">
+              <keyTimes>
+                <integer value="0"/>
+                <real value="0.25"/>
+                <real value="0.75"/>
+                <integer value="1"/>
+              </keyTimes>
+              <timingFunctions/>
+              <values>
+                <integer value="1"/>
+                <real value="1.05"/>
+                <real value="0.95"/>
+                <integer value="1"/>
+              </values>
+            </p>
+            <p key="animation-1" type="CAKeyframeAnimation" calculationMode="cubic" additive="0" cumulative="0" keyPath="transform.translation.y" beginTime="1e-100" duration="3" fillMode="both" removedOnCompletion="0" repeatCount="inf" speed="1">
+              <keyTimes>
+                <integer value="0"/>
+                <real value="0.25"/>
+                <real value="0.75"/>
+                <integer value="1"/>
+              </keyTimes>
+              <timingFunctions/>
+              <values>
+                <integer value="0"/>
+                <integer value="-5"/>
+                <integer value="5"/>
+                <integer value="0"/>
+              </values>
+            </p>
+            <p key="animation-3" type="CAKeyframeAnimation" calculationMode="cubic" keyPath="transform.rotation.z" beginTime="1e-100" duration="3" fillMode="both" removedOnCompletion="0" repeatCount="inf" speed="1">
+              <keyTimes>
+                <integer value="0"/>
+                <real value="0.25"/>
+                <real value="0.75"/>
+                <integer value="1"/>
+              </keyTimes>
+              <timingFunctions/>
+              <values>
+                <integer value="0"/>
+                <real value="0.0872665"/>
+                <real value="-0.0872665"/>
+                <integer value="0"/>
+              </values>
+            </p>
+            <animation type="CAKeyframeAnimation" calculationMode="cubic" keyPath="transform.translation.x" beginTime="1e-100" duration="3" fillMode="both" removedOnCompletion="0" repeatCount="inf" speed="1">
+              <keyTimes>
+                <integer value="0"/>
+                <real value="0.25"/>
+                <real value="0.5"/>
+                <real value="0.75"/>
+                <integer value="1"/>
+              </keyTimes>
+              <timingFunctions/>
+              <values>
+                <integer value="0"/>
+                <integer value="5"/>
+                <integer value="-5"/>
+                <integer value="0"/>
+              </values>
+            </animation>
+          </animations>
+    </CALayer>
+      </sublayers>
+    <scriptComponents/>
+    <states>
+      <LKState name="Locked">
+    <elements>
+      <LKStateSetValue targetId="#1" keyPath="opacity">
+        <value type="integer" value="1"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="Background 1" keyPath="position.y">
+        <value type="integer" value="0"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="KANYE WEST" keyPath="position.y">
+        <value type="real" value="488.5"/>
+      </LKStateSetValue>
+    </elements>
+      </LKState>
+      <LKState name="Unlock">
+    <elements>
+      <LKStateSetValue targetId="#1" keyPath="opacity">
+        <value type="real" value="1"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="Background 1" keyPath="position.y">
+        <value type="integer" value="-848"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="KANYE WEST" keyPath="position.y">
+        <value type="real" value="356.5"/>
+      </LKStateSetValue>
+    </elements>
+      </LKState>
+      <LKState name="Sleep">
+    <elements>
+      <LKStateSetValue targetId="#1" keyPath="opacity">
+        <value type="integer" value="0"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="Background 1" keyPath="position.y">
+        <value type="integer" value="0"/>
+      </LKStateSetValue>
+      <LKStateSetValue targetId="KANYE WEST" keyPath="position.y">
+        <value type="real" value="488.5"/>
+      </LKStateSetValue>
+    </elements>
+      </LKState>
+    </states>
+    <stateTransitions>
+      <LKStateTransition fromState="*" toState="Unlock">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+      <LKStateTransition fromState="Unlock" toState="*">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+      <LKStateTransition fromState="*" toState="Locked">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+      <LKStateTransition fromState="Locked" toState="*">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+      <LKStateTransition fromState="*" toState="Sleep">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+      <LKStateTransition fromState="Sleep" toState="*">
+    <elements>
+      <LKStateTransitionElement key="opacity" targetId="#1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="opacity" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="Background 1">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+      <LKStateTransitionElement key="position.y" targetId="KANYE WEST">
+        <animation type="CASpringAnimation" damping="50" mass="2" stiffness="300" velocity="0" mica_autorecalculatesDuration="1" keyPath="position.y" duration="0.8" fillMode="backwards"/>
+      </LKStateTransitionElement>
+    </elements>
+      </LKStateTransition>
+    </stateTransitions>
+  </CALayer>
+</caml>
