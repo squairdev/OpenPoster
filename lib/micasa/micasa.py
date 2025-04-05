@@ -15,7 +15,8 @@ class XmlGenerator:
             fileExtension = '.png',
             padding = 4,
             exportAsAnimation = False,
-            fps = 30
+            fps = 30,
+            withRoot = True
         ):
         """
             Generate multi-line xml thingy that you can insert into .caml file directly
@@ -48,7 +49,7 @@ class XmlGenerator:
             })
             values = et.SubElement(animation, 'values')
 
-        for i in range(startFrame, endFrame):
+        for i in range(startFrame, endFrame + 1):
             n = f"{i:0{padding}d}"
 
             if exportAsAnimation:
@@ -58,13 +59,33 @@ class XmlGenerator:
 
             asset.set('scr', f"assets/{filePrefix}{n}{fileExtension}")
 
-        tree = et.ElementTree(root)
-        return tree
+        if withRoot:
+            result = et.ElementTree(root)
+        else:
+            if exportAsAnimation:
+                animations_elem = root.find('animations')
+                return et.ElementTree(animations_elem)
+            else:
+                new_root = et.Element('values')
+                for child in list(root):
+                    new_root.append(child)
+                return et.ElementTree(new_root)
+
+        return result
 
 # for debugging
 #if __name__ == "__main__":
 #    gen = XmlGenerator()
-#    t = gen.make_xml(0, 30, 'test_', '.jpg', 3, True, 12)
+#    t = gen.make_xml(
+#        startFrame=0,
+#        endFrame=15,
+#        filePrefix="id1_",
+#        fileExtension=".jpg",
+#        padding=3,
+#        exportAsAnimation=True,
+#        fps=10,
+#        withRoot=True
+#    )
 #    xml_str = et.tostring(t.getroot(), 'utf-8')
 #    formatted = minidom.parseString(xml_str).toprettyxml("\t")
 #    print(formatted)
