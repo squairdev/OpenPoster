@@ -10,7 +10,7 @@ Website: https://openposter.pages.dev/
 ## Building
 
 To build the QT UI:
-````pyside6-uic qt/mainwindow.ui -o qt/ui_mainwindow.py````
+````pyside6-uic ui/mainwindow.ui -o ui/ui_mainwindow.py````
 
 To build the application:
 ```python3 compile.py```
