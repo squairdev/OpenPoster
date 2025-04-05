@@ -73,19 +73,47 @@ class XmlGenerator:
 
         return result
 
+
+# TODO: ts vro </3
+class AnimationObjectEditor:
+    def __init__(self, xmlTree):
+        self.xmlContent = xmlTree
+
+    def change_duration(
+            self,
+            autoMode = True,
+            fps = 30,
+            targetDuration = 15
+        ):
+        """
+            if autoMode is on then every varible after it is ignored
+        """
+        print(self.xmlContent, autoMode, fps, targetDuration)
+
+    def fix_dereferenced(
+            self,
+            fixAll = False,
+            targetAnimationToFix = et.ElementTree
+        ):
+        """
+            fixAll will go through all animation objects so provide the whole .caml
+        """
+        print(self.xmlContent, fixAll, targetAnimationToFix)
+
+
 # for debugging
-#if __name__ == "__main__":
-#    gen = XmlGenerator()
-#    t = gen.make_xml(
-#        startFrame=0,
-#        endFrame=15,
-#        filePrefix="id1_",
-#        fileExtension=".jpg",
-#        padding=3,
-#        exportAsAnimation=True,
-#        fps=10,
-#        withRoot=True
-#    )
-#    xml_str = et.tostring(t.getroot(), 'utf-8')
-#    formatted = minidom.parseString(xml_str).toprettyxml("\t")
-#    print(formatted)
+if __name__ == "__main__":
+    gen = XmlGenerator()
+    t = gen.make_xml(
+        startFrame=0,
+        endFrame=15,
+        filePrefix="id1_",
+        fileExtension=".jpg",
+        padding=3,
+        exportAsAnimation=True,
+        fps=10,
+        withRoot=True
+    )
+    xml_str = et.tostring(t.getroot(), 'utf-8')
+    formatted = minidom.parseString(xml_str).toprettyxml("\t")
+    print(formatted)
