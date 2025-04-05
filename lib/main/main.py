@@ -6,6 +6,18 @@ class CGImage:
     def __init__(self, src):
         self.src = src
 
+class CGPoint:
+    def __init__(self, element):
+        self.element = element
+        self.type = self.element.tag.replace("{http://www.apple.com/CoreAnimation/1.0}","")
+        self.value = self.element.get("value")
+
+    def create(self):
+        e = ET.Element(self.type)
+        e.set("value", self.value)
+
+        return e
+
 class LKStateSetValue:
     def __init__(self, element):
         self.element = element
@@ -45,33 +57,125 @@ class LKState:
         return e
 
 class CAAnimation:
-    def __init__(self):
-        pass
-        # placeholder for when future animations are added
+    def __init__(self, element):
+        self.element = element
+        self.tag     = self.element.tag.replace("{http://www.apple.com/CoreAnimation/1.0}","")
+        self.type    = "CAAnimation"
+
+        # BASIC
+        self.keyPath = self.element.get("keyPath")
+
+        # TIMING
+        self.beginTime           = self.element.get("beginTime")
+        self.duration            = self.element.get("duration")
+        self.fillMode            = self.element.get("fillMode")
+        self.removedOnCompletion = self.element.get("removedOnCompletion")
+        self.repeatCount         = self.element.get("repeatCount")
+        self.repeatDuration      = self.element.get("repeatDuration")
+        self.speed               = self.element.get("speed")
+        self.timeOffset          = self.element.get("timeOffset")
+        self.timingFunction      = self.element.get("timingFunction")
+
+    def create(self):
+        e = ET.Element(self.tag)
+        self.setValue(e, "type", self.type)
+
+        # BASIC
+        self.setValue(e, "keyPath", self.keyPath)
+
+        # TIMING
+        self.setValue(e, "beginTime", self.beginTime)
+        self.setValue(e, "duration", self.duration)
+        self.setValue(e, "fillMode", self.fillMode)
+        self.setValue(e, "removedOnCompletion", self.removedOnCompletion)
+        self.setValue(e, "repeatCount", self.repeatCount)
+        self.setValue(e, "repeatDuration", self.repeatDuration)
+        self.setValue(e, "speed", self.speed)
+        self.setValue(e, "timeOffset", self.timeOffset)
+        self.setValue(e, "timingFunction", self.timingFunction)
+
+        return e
+
+    def setValue(self, element, key, value):
+        if value != None: element.set(key, value)
 
 class CASpringAnimation(CAAnimation):
     def __init__(self ,element):
-        self.element = element
+        super().__init__(element)
         self.type = "CASpringAnimation"
-        self.damping = self.element.get("damping")
-        self.mass = self.element.get("mass")
-        self.stiffness = self.element.get("stiffness")
-        self.velocity = self.element.get("velocity")
-        self.keyPath = self.element.get("keyPath")
-        self.duration = self.element.get("duration")
-        self.fillMode = self.element.get("fillMode")
+
+        # SPRING
+        self.damping    = self.element.get("damping")
+        self.mass       = self.element.get("mass")
+        self.stiffness  = self.element.get("stiffness")
+        self.velocity   = self.element.get("velocity")
         self.micarecalc = self.element.get("mica_autorecalculatesDuration")
+
     def create(self):
-        e = ET.Element("animation")
-        e.set("type",self.type)
-        e.set("damping",self.damping)
-        e.set("mass",self.mass)
-        e.set("stiffness",self.stiffness)
-        e.set("velocity",self.velocity)
-        e.set("keyPath",self.keyPath)
-        e.set("duration",self.duration)
-        e.set("fillMode",self.fillMode)
-        e.set("mica_autorecalculatesDuration",self.micarecalc) # TODO: check if this is necessary
+        e = super().create()
+
+        # SPRING
+        self.setValue(e, "damping", self.damping)
+        self.setValue(e, "mass", self.mass)
+        self.setValue(e, "stiffness", self.stiffness)
+        self.setValue(e, "velocity", self.velocity)
+        self.setValue(e, "mica_autorecalculatesDuration", self.micarecalc) # TODO: check if this is necessary
+
+        return e
+
+class CAMatchMoveAnimation(CAAnimation):
+    def __init__(self, element):
+        super().__init__(element)
+        self.type = "CAMatchMoveAnimation"
+
+        # MATCH MOVE
+        self.additive                  = self.element.get("additive")
+        self.appliesX                  = self.element.get("appliesX")
+        self.appliesY                  = self.element.get("appliesY")
+        self.appliesScale              = self.element.get("appliesScale")
+        self.appliesRotation           = self.element.get("appliesRotation")
+        self.targetsSuperlayer         = self.element.get("targetsSuperlayer")
+        self.usesNormalizedCoordinates = self.element.get("usesNormalizedCoordinates")
+        
+        self.sourceLayer = None
+        self._sourceLayer = self.element.find("{http://www.apple.com/CoreAnimation/1.0}sourceLayer")
+        if self._sourceLayer != None:
+            self.sourceLayer = self._sourceLayer
+
+        self.sourcePoints = []
+        self._sourcePoints = self.element.find("{http://www.apple.com/CoreAnimation/1.0}sourcePoints")
+        if self._sourcePoints != []:
+            for sourcePoint in self._sourcePoints:
+                self.sourcePoints.append(CGPoint(sourcePoint))
+
+        self.animationType = None
+        self._animationType = self.element.find("{http://www.apple.com/CoreAnimation/1.0}animationType")
+        if self._animationType != None:
+            self.animationType = self._animationType
+
+    def create(self):
+        e = super().create()
+
+        # MATCH MOVE
+        self.setValue(e, "additive", self.additive)
+        self.setValue(e, "appliesX", self.appliesX)
+        self.setValue(e, "appliesY", self.appliesY)
+        self.setValue(e, "appliesScale", self.appliesScale)
+        self.setValue(e, "appliesRotation", self.appliesRotation)
+        self.setValue(e, "targetsSuperLayer", self.targetsSuperlayer)
+        self.setValue(e, "usesNormalizedCoordinates", self.usesNormalizedCoordinates)
+
+        if self.sourceLayer != None:
+            sourceLayer = ET.SubElement(e, "sourceLayer")
+            self.setValue(sourceLayer, "object", self.sourceLayer.get("object"))
+
+        if self.sourcePoints != []:
+            sourcePoints = ET.SubElement(e, "sourcePoints")
+            for sourcePoint in self.sourcePoints:
+                sourcePoints.append(sourcePoint.create())
+
+        if self.animationType != None:
+            animationType = ET.SubElement(e, "animationType")
 
         return e
 
@@ -134,18 +238,12 @@ class CANumber:
 
 class CAKeyframeAnimation(CAAnimation):
     def __init__(self, element):
-        self.element = element
-        self.tag = self.element.tag.replace("{http://www.apple.com/CoreAnimation/1.0}","") # either animation or p i think
+        super().__init__(element)
         if self.tag == "p": self.key = self.element.get("key")
-        self.type="CAKeyframeAnimation"
+        self.type = "CAKeyframeAnimation"
+
+        # KEYFRAME
         self.calculationMode = self.element.get("calculationMode")
-        self.keyPath = self.element.get("keyPath")
-        self.beginTime = self.element.get("beginTime")
-        self.duration = self.element.get("duration")
-        self.fillMode = self.element.get("fillMode")
-        self.removedOnCompletion = self.element.get("removedOnCompletion")
-        self.repeatCount = self.element.get("repeatCount")
-        self.speed = self.element.get("speed")
 
         self.keyTimes = []
         self._keyTimes = self.element.find("{http://www.apple.com/CoreAnimation/1.0}keyTimes")
@@ -160,18 +258,11 @@ class CAKeyframeAnimation(CAAnimation):
                 self.values.append(CANumber(value))
 
     def create(self):
-        e = ET.Element(self.tag)
+        e = super().create()
+        if self.tag == "p": self.setValue(e, "key",self.key)
 
-        e.set("type","CAKeyframeAnimation")
-        if self.tag == "p": e.set("key",self.key)
-        e.set("calculationMode",self.calculationMode)
-        e.set("keyPath", self.keyPath)
-        e.set("beginTime", self.beginTime)
-        e.set("duration",self.duration)
-        e.set("fillMode",self.fillMode)
-        e.set("removedOnCompletion", self.removedOnCompletion)
-        e.set("repeatCount", self.repeatCount)
-        e.set("speed", self.speed)
+        # KEYFRAME
+        self.setValue(e, "calculationMode",self.calculationMode)
 
         if self.keyTimes != []:
             keyTimes = ET.SubElement(e,'keyTimes')
@@ -237,6 +328,8 @@ class CALayer:
             for animation in self._animations:
                 if animation.get("type") == "CAKeyframeAnimation":
                     self.animations.append(CAKeyframeAnimation(animation))
+                if animation.get("type") == "CAMatchMoveAnimation":
+                    self.animations.append(CAMatchMoveAnimation(animation))
 
 
 
