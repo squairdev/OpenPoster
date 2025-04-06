@@ -1,12 +1,14 @@
 <div align="center">
   <img width="225" height="225" src="/assets/openposter.png" alt="Logo">
 
-# OpenPoster
+<h1>OpenPoster</h1>
 
-A collection of scripts to edit .ca files, all connected through a GUI powered by hope, dreams, and a bit of code.
+<h3>A collection of scripts to edit .ca files, all connected through a GUI powered by hope, dreams, and a bit of code.</h3>
 
-Website: https://openposter.pages.dev/
+<h4>Website: https://openposter.pages.dev/</h4>
+</div><br>
 
+<!-- back to normal markdown we go -->
 ## Building
 
 To build the QT UI:
