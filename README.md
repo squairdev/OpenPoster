@@ -11,6 +11,9 @@
 <!-- back to normal markdown we go -->
 ## Building
 
+Install requirements:
+````pip install -r requirements.txt````
+
 To build the QT UI:
 ````pyside6-uic ui/mainwindow.ui -o ui/ui_mainwindow.py````
 
