@@ -24,11 +24,13 @@ jobs:
               exit 1
             }
           done
+          
   build:
-    name: build (${{ matrix.config.name }})
+    name: Build (${{ matrix.config.name }})
     needs: [lint]
     runs-on: ${{ matrix.config.os }}
     strategy:
+      fail-fast: false
       matrix:
         config:
           - name: macos-intel
@@ -37,21 +39,19 @@ jobs:
             cmds: |
               cd dist
               zip -r -y "OpenPoster-${{ matrix.config.name }}.zip" OpenPoster.app
-
           - name: macos-arm
             os: macos-latest
             python: python3
             cmds: |
               cd dist
               zip -r -y "OpenPoster-${{ matrix.config.name }}.zip" OpenPoster.app
-
           - name: windows
             os: windows-latest
             python: python
             cmds: |
               cd dist
               Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.config.name }}.zip"
-
+              
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
