@@ -2,9 +2,30 @@ name: Build OpenPoster
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      # problem? :P
+      - main
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: the real deal
+        run: |
+          for file in ui/*.ui; do
+            xmllint --noout "$file" || {
+              echo "please kindly check $file thank you"
+              exit 1
+            }
+          done
+
   build-macos-intel:
+    name: build (intel)
     runs-on: macos-13
     steps:
       - name: Checkout code
@@ -20,21 +41,22 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build MacOS (Intel)
+      - name: Build
         run: python3 compile.py
 
-      - name: Zip OpenPoster.app (Intel)
+      - name: Zip OpenPoster.app
         run: |
           cd dist
           zip -r -y "OpenPoster_macOS_intel.zip" OpenPoster.app
 
-      - name: Upload ZIP (Intel)
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
           name: OpenPoster_macOS_intel
           path: dist/OpenPoster_macOS_intel.zip
 
   build-macos-arm:
+    name: build (arm)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -65,6 +87,7 @@ jobs:
           path: dist/OpenPoster_macOS_arm.zip
 
   build-windows:
+    name: build (windows)
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -88,7 +111,7 @@ jobs:
           cd dist
           Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster_Windows.zip"
 
-      - name: Upload ZIP (Windows)
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
           name: OpenPoster_Windows
