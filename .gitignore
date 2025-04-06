@@ -3,3 +3,5 @@
 /build
 /dist
 OpenPoster.spec
+compile.spec
+app.spec
