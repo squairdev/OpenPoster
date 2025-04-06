@@ -11,6 +11,7 @@ jobs:
   lint:
     name: Lint
     runs-on: macos-latest
+    if: startsWith(github.event.head_commit.message, '[build]')
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -23,10 +24,34 @@ jobs:
               exit 1
             }
           done
+  build:
+    name: build (${{ matrix.name }})
+    needs: [lint]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: macos-intel
+            os: macos-13
+            python: python3
+            cmds: |
+              cd dist
+              zip -r -y "OpenPoster-${{ matrix.name }}.zip" OpenPoster.app
 
-  build-macos-intel:
-    name: build (intel)
-    runs-on: macos-13
+          - name: macos-arm
+            os: macos-latest
+            python: python3
+            cmds: |
+              cd dist
+              zip -r -y "OpenPoster-${{ matrix.name }}.zip" OpenPoster.app
+
+          - name: windows
+            os: windows-latest
+            python: python
+            cmds: |
+              cd dist
+              Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.name }}.zip"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -38,81 +63,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
+          ${{ matrix.python }} -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Build
-        run: python3 compile.py
+        run: ${{ matrix.python }} compile.py
 
-      - name: Zip OpenPoster.app
-        run: |
-          cd dist
-          zip -r -y "OpenPoster_macOS_intel.zip" OpenPoster.app
+      - name: Zip App
+        run: ${{ matrix.cmds }}
 
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: OpenPoster_macOS_intel
-          path: dist/OpenPoster_macOS_intel.zip
-
-  build-macos-arm:
-    name: build (arm)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build MacOS (ARM)
-        run: python3 compile.py
-
-      - name: Zip OpenPoster.app (ARM)
-        run: |
-          cd dist
-          zip -r -y "OpenPoster_macOS_arm.zip" OpenPoster.app
-
-      - name: Upload ZIP(ARM)
-        uses: actions/upload-artifact@v4
-        with:
-          name: OpenPoster_macOS_arm
-          path: dist/OpenPoster_macOS_arm.zip
-
-  build-windows:
-    name: build (windows)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build Windows
-        run: python compile.py
-
-      - name: Zip OpenPoster
-        run: |
-          cd dist
-          Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster_Windows.zip"
-
-      - name: Upload ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: OpenPoster_Windows
-          path: dist/OpenPoster_Windows.zip
+          name: "OpenPoster-${{ matrix.name }}.zip"
+          path: "dist/OpenPoster-${{ matrix.name }}.zip"
