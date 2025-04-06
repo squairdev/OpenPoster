@@ -25,32 +25,32 @@ jobs:
             }
           done
   build:
-    name: build (${{ matrix.name }})
+    name: build (${{ matrix.config.name }})
     needs: [lint]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       matrix:
-        include:
+        config:
           - name: macos-intel
             os: macos-13
             python: python3
             cmds: |
               cd dist
-              zip -r -y "OpenPoster-${{ matrix.name }}.zip" OpenPoster.app
+              zip -r -y "OpenPoster-${{ matrix.config.name }}.zip" OpenPoster.app
 
           - name: macos-arm
             os: macos-latest
             python: python3
             cmds: |
               cd dist
-              zip -r -y "OpenPoster-${{ matrix.name }}.zip" OpenPoster.app
+              zip -r -y "OpenPoster-${{ matrix.config.name }}.zip" OpenPoster.app
 
           - name: windows
             os: windows-latest
             python: python
             cmds: |
               cd dist
-              Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.name }}.zip"
+              Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.config.name }}.zip"
 
     steps:
       - name: Checkout code
@@ -63,17 +63,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ${{ matrix.python }} -m pip install --upgrade pip
+          ${{ matrix.config.python }} -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Build
-        run: ${{ matrix.python }} compile.py
+        run: ${{ matrix.config.python }} compile.py
 
       - name: Zip App
-        run: ${{ matrix.cmds }}
+        run: ${{ matrix.config.cmds }}
 
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: "OpenPoster-${{ matrix.name }}.zip"
-          path: "dist/OpenPoster-${{ matrix.name }}.zip"
+          name: "OpenPoster-${{ matrix.config.name }}.zip"
+          path: "dist/OpenPoster-${{ matrix.confing.name }}.zip"
