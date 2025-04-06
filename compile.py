@@ -18,7 +18,7 @@ hacks = [
     '--collect-submodules=PySide6',
     '--collect-data=PySide6'
 ]
-args.extend(hacks)
+# args.extend(hacks)
 
 if platform == "darwin":
     # add --windowed arg for macOS
