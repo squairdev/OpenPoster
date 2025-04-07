@@ -1,7 +1,6 @@
-import random
 import sys
 from lib.main.main import CAFile
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore
 from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem
 from ui.ui_mainwindow import Ui_OpenPoster
 
@@ -18,9 +17,11 @@ class MainWindow(QMainWindow):
 
     def openFile(self):
         if sys.platform == "darwin":
-            self.cafilepath = QFileDialog.getOpenFileName(self, "Select File", "", "Core Animation Files (*.ca)")[0]
+            self.cafilepath = QFileDialog.getOpenFileName(
+                self, "Select File", "", "Core Animation Files (*.ca)")[0]
         else:
-            self.cafilepath = QFileDialog.getExistingDirectory(self, "Select Folder", "")
+            self.cafilepath = QFileDialog.getExistingDirectory(
+                self, "Select Folder", "")
         self.ui.filename.setText(self.cafilepath)
         self.cafile = CAFile(self.cafilepath)
 
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
             if len(sublayer._sublayerorder) > 0:
                 self.treeWidgetChildren(
                     item.child(item.childCount()-1), sublayer)
-            if sublayer._animations != None:
+            if sublayer._animations is not None:
                 for animation in sublayer.animations:
                     item.child(item.childCount()-1).addChild(QTreeWidgetItem(
                         [animation.keyPath, "Animation"]))
