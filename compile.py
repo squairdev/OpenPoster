@@ -18,7 +18,6 @@ hacks = [
     '--collect-submodules=PySide6',
     '--collect-data=PySide6'
 ]
-args.extend(hacks)
 
 if platform == "darwin":
     # add --windowed arg for macOS
@@ -26,5 +25,6 @@ if platform == "darwin":
     args.append('--icon=assets/openposter.icns')
 elif platform == "win32":
     args.append('--icon=assets/openposter.ico')
+    args.extend(hacks)
 
 PyInstaller.__main__.run(args)
