@@ -73,7 +73,7 @@ class CAAnimation:
         self.type = "CAAnimation"
 
         # BASIC
-        self.keyPath = self.element.get("keyPath")
+        self.keyPath = self.element.get("keyPath") or "position"
 
         # TIMING
         self.beginTime = self.element.get("beginTime")
@@ -360,8 +360,30 @@ class CALayer:
             for animation in self._animations:
                 if animation.get("type") == "CAKeyframeAnimation":
                     self.animations.append(CAKeyframeAnimation(animation))
-                if animation.get("type") == "CAMatchMoveAnimation":
+                elif animation.get("type") == "CAMatchMoveAnimation":
                     self.animations.append(CAMatchMoveAnimation(animation))
+
+    def findlayer(self, uniqueid):
+        # must be a unique value or it will return the first instance it finds because im too lazy - retron
+        for id in self._sublayerorder:
+            possiblelayer = self.sublayers.get(id)
+            if possiblelayer.id == uniqueid:
+                return possiblelayer
+            else:
+                if possiblelayer._sublayerorder is not []:
+                    recursion = possiblelayer.findlayer(uniqueid)
+                    if recursion is not None:
+                        return recursion
+        # if nothing is found
+        return None
+
+    def findanimation(self, keyPath):
+        # this will only return first animation with a certain keyPath (not sure if its valid for multiple to exist) - retron
+        for animation in self.animations:
+            if animation.keyPath == keyPath:
+                return animation
+        # none are found
+        return None
 
     def create(self):
         e = ET.Element('CALayer')
@@ -459,4 +481,6 @@ class CAFile:
 
 if __name__ == "__main__":
     test = CAFile("test2.ca")
+    layer = test.rootlayer.findlayer("KANYE WEST")
+    layer.name = "THIS WAS EDITED"
     test.write_file("test3.ca")
