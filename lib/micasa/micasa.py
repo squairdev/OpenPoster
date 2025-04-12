@@ -206,4 +206,5 @@ if __name__ == "__main__":
     editor = AnimationObjectEditor()
     editor.load_file("main.caml")
     editor.insert_object_to_target("CALayer", "name", "Target", t.getroot())
+    #editor.insert_object_to_target("CALayer", "nuggetId", "1", t.getroot())
     editor.save_file("main_output.caml")

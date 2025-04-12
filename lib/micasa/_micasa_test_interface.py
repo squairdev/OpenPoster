@@ -127,10 +127,12 @@ class MainWindow(QMainWindow):
         self.inject_targettype.setPlaceholderText("Target type (Required e.g. CALayer)")
         inject_group_layout.addWidget(self.inject_targettype)
 
-        # attr should be set to "name" automatically
+        self.inject_targetattr = QLineEdit(self)
+        self.inject_targetattr.setPlaceholderText("Target attribute (Required e.g. name, nuggetId)")
+        inject_group_layout.addWidget(self.inject_targetattr)
 
         self.inject_targetname = QLineEdit(self)
-        self.inject_targetname.setPlaceholderText("Target name (Required e.g. MyTargetLayer)")
+        self.inject_targetname.setPlaceholderText("Target name/id (Required e.g. Layer1, 2)")
         inject_group_layout.addWidget(self.inject_targetname)
 
         inject_button_layout = QHBoxLayout()
@@ -204,10 +206,14 @@ class MainWindow(QMainWindow):
     # injecting func call
     def injectObject(self):
         type = self.inject_targettype.text()
+        attr = self.inject_targetattr.text()
         name = self.inject_targetname.text()
 
         if not type:
             print("Missing type")
+            return
+        if not attr:
+            print("Missing attribute")
             return
         if not name:
             print("Missing name")
@@ -217,7 +223,7 @@ class MainWindow(QMainWindow):
             return
 
         self.AnimEdit.load_file("main.caml")
-        self.AnimEdit.insert_object_to_target(type, "name", name, self._object_saved.getroot())
+        self.AnimEdit.insert_object_to_target(type, attr, name, self._object_saved.getroot())
         self.AnimEdit.save_file("main_output.caml")
 
 
