@@ -26,7 +26,7 @@ class XmlGenerator:
         root = et.Element('root')
 
         #<animations>
-        #    <animation type="CAKeyframeAnimation" calculationMode="discrete" keyPath="contents" beginTime="1e-100" duration="5" removedOnCompletion="0" repeatCount="inf" repeatDuration="0" speed="1" timeOffset="0">
+        #    <animation type="CAKeyframeAnimation" calculationMode="linear" keyPath="contents" beginTime="1e-100" duration="5" removedOnCompletion="0" repeatCount="inf" repeatDuration="0" speed="1" timeOffset="0">
         #        <values>
         #            ...
         #        </values>
@@ -58,7 +58,7 @@ class XmlGenerator:
             else:
                 asset = et.SubElement(root, self.startTag)
 
-            asset.set('scr', f"assets/{filePrefix}{n}{fileExtension}")
+            asset.set('src', f"assets/{filePrefix}{n}{fileExtension}")
 
         if withRoot:
             result = et.ElementTree(root)

@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
-    QFileDialog
 )
 from PySide6.QtGui import (
     QIcon,
