@@ -57,22 +57,6 @@
                 <integer value="0"/>
               </values>
             </p>
-            <animation type="CAKeyframeAnimation" calculationMode="cubic" keyPath="transform.translation.x" beginTime="1e-100" duration="3" fillMode="both" removedOnCompletion="0" repeatCount="inf" speed="1">
-              <keyTimes>
-                <integer value="0"/>
-                <real value="0.25"/>
-                <real value="0.5"/>
-                <real value="0.75"/>
-                <integer value="1"/>
-              </keyTimes>
-              <timingFunctions/>
-              <values>
-                <integer value="0"/>
-                <integer value="5"/>
-                <integer value="-5"/>
-                <integer value="0"/>
-              </values>
-            </animation>
             <animation type="CAMatchMoveAnimation" additive="1" targetsSuperlayer="1" usesNormalizedCoordinates="1" beginTime="1e-100" duration="1" removedOnCompletion="0">
               <sourceLayer object="#1"/>
               <sourcePoints>

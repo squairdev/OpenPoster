@@ -16,6 +16,7 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
 
     def openFile(self):
+        self.ui.treeWidget.clear()
         if sys.platform == "darwin":
             self.cafilepath = QFileDialog.getOpenFileName(
                 self, "Select File", "", "Core Animation Files (*.ca)")[0]
@@ -36,15 +37,17 @@ class MainWindow(QMainWindow):
         for id in layer._sublayerorder:
             sublayer = layer.sublayers.get(id)
             item.addChild(QTreeWidgetItem(
-                [sublayer.name, "Layer", sublayer.id]))
+                [sublayer.name, "Layer", sublayer.id, layer.id]))
 
             if len(sublayer._sublayerorder) > 0:
                 self.treeWidgetChildren(
                     item.child(item.childCount()-1), sublayer)
             if sublayer._animations is not None:
+                print(sublayer.animations)
                 for animation in sublayer.animations:
+                    print(animation)
                     item.child(item.childCount()-1).addChild(QTreeWidgetItem(
-                        [animation.keyPath, "Animation"]))
+                        [animation.keyPath, "Animation", "", sublayer.id]))
 
     def openInInspector(self, current, _):
         self.ui.tableWidget.setRowCount(0)
@@ -52,5 +55,20 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setItem(0, 0, QTableWidgetItem("name"))
         self.ui.tableWidget.item(0, 0).setFlags(QtCore.Qt.ItemIsEnabled)
         self.ui.tableWidget.setItem(0, 1, QTableWidgetItem(current.text(0)))
-        # print(self.cafile.find(current.text(2)))
-        print(current.text(0), current.text(2))  # get name and id
+        print(current.text(0), current.text(1),
+              current.text(2), current.text(3))
+        if current.text(1) == "Animation":
+            # element = self.cafile.root.find(
+            #    f".//*[@id='{current.text(3)}']/{{*}}animations/*[@keyPath='{current.text(0)}']")
+            parent = self.cafile.rootlayer.findlayer(current.text(3))
+            element = parent.findanimation(current.text(0))
+        elif current.text(1) == "Layer":
+            # element = self.cafile.root.find(
+            #    f".//*[@id='{current.text(3)}']/{{*}}sublayers/*[@id='{current.text(2)}']")
+            element = self.cafile.rootlayer.findlayer(current.text(2))
+        elif current.text(1) == "Root":
+            element = self.cafile.rootlayer
+        else:
+            element = None
+            print("erm")
+        print(element)
