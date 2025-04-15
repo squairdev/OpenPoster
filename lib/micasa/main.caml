@@ -10,7 +10,8 @@
 	  </CAEmitterCell>
 	</emitterCells>
       </CAEmitterLayer>
-      <CALayer allowsEdgeAntialiasing="1" allowsGroupOpacity="1" bounds="0 0 1200 2600" contentsFormat="RGBA8" name="front_video" position="1588 1588" transform="scale(1.225, 1.225, 1)"/>
+      <CALayer allowsEdgeAntialiasing="1" allowsGroupOpacity="1" bounds="0 0 1179 2556" contentsFormat="RGBA8" name="front_video" position="1588 1588" transform="">
+      </CALayer>
     </sublayers>
     <states>
       <LKState name="Sleep PortraitUp Light">

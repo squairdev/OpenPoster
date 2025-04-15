@@ -88,11 +88,20 @@ class MainWindow(QMainWindow):
         self.mxinput_fps.setPlaceholderText("FPS (Required. e.g. 24, 30, 60)")
         mx_group_layout.addWidget(self.mxinput_fps)
 
+        self.mxinput_step = QLineEdit(self)
+        self.mxinput_step.setPlaceholderText("Step/Frame skip (Required. e.g. 1, 2)")
+        mx_group_layout.addWidget(self.mxinput_step)
+
+        self.mxinput_button_hbox = QHBoxLayout()
+        self.mxinput_button_hbox.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
         self.mxinput_exportasanimation = QCheckBox("Export as animation object")
-        mx_group_layout.addWidget(self.mxinput_exportasanimation)
+        self.mxinput_button_hbox.addWidget(self.mxinput_exportasanimation)
 
         self.mxinput_withroot = QCheckBox("Include <root> tag")
-        mx_group_layout.addWidget(self.mxinput_withroot)
+        self.mxinput_button_hbox.addWidget(self.mxinput_withroot)
+
+        mx_group_layout.addLayout(self.mxinput_button_hbox)
 
         # layout first
         button_layout = QHBoxLayout()
@@ -162,8 +171,9 @@ class MainWindow(QMainWindow):
         file_prefix = self.mxinput_fileprefix.text()
         file_extension = self.mxinput_fileextension.text()
         padding = self.mxinput_padding.text()
-        export_as_animation = self.mxinput_exportasanimation.isChecked()
         fps = self.mxinput_fps.text()
+        step = self.mxinput_step.text()
+        export_as_animation = self.mxinput_exportasanimation.isChecked()
         with_root = self.mxinput_withroot.isChecked()
 
         # int check for everything
@@ -171,13 +181,17 @@ class MainWindow(QMainWindow):
             try:
                 return int(value)
             except ValueError:
-                raise ValueError(f"{name} is not an int ({value})")
+                try:
+                    return float(value)
+                except ValueError:
+                    raise ValueError(f"{name} is not an int/float ({value})")
             
         try:
             start_frame = toInt(start_frame, "sf")
             end_frame = toInt(end_frame, "ef")
             padding = toInt(padding, "pad")
             fps = toInt(fps, "fps")
+            step = toInt(step, "step")
         except ValueError as e:
             print(e)
             return
@@ -190,6 +204,7 @@ class MainWindow(QMainWindow):
             padding=padding,
             exportAsAnimation=export_as_animation,
             fps=fps,
+            step=step,
             withRoot=with_root
         )
 

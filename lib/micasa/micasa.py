@@ -17,6 +17,7 @@ class XmlGenerator:
             padding = 4,
             exportAsAnimation = False,
             fps = 30,
+            step = 1,
             withRoot = True
         ) -> et.ElementTree:
         """
@@ -34,7 +35,8 @@ class XmlGenerator:
         #</animations>
 
         if exportAsAnimation:
-            totalDuration = (endFrame - startFrame) / fps
+            totalDuration = ((endFrame - startFrame) / fps) / step
+
             animations = et.SubElement(root, 'animations')
             animation = et.SubElement(animations, 'animation', {
                 'type': 'CAKeyframeAnimation',
@@ -50,8 +52,10 @@ class XmlGenerator:
             })
             values = et.SubElement(animation, 'values')
 
-        for i in range(startFrame, endFrame + 1):
-            n = f"{i:0{padding}d}"
+        si = startFrame
+        for i in range(startFrame, int((endFrame + step) / step)):
+            n = f"{si:0{padding}d}"
+            si += step
 
             if exportAsAnimation:
                 asset = et.SubElement(values, self.startTag)
@@ -190,21 +194,22 @@ class AnimationObjectEditor:
 if __name__ == "__main__":
     gen = XmlGenerator()
     t = gen.make_xml(
-        startFrame=0,
-        endFrame=15,
-        filePrefix="id1_",
-        fileExtension=".jpg",
-        padding=3,
+        startFrame=1,
+        endFrame=200,
+        filePrefix="fg_",
+        fileExtension=".png",
+        padding=4,
         exportAsAnimation=True,
-        fps=10,
+        fps=12.5,
+        step=2,
         withRoot=False
     )
     xml_str = et.tostring(t.getroot(), 'utf-8')
     formatted = minidom.parseString(xml_str).toprettyxml("\t")
     print(formatted)
     
-    editor = AnimationObjectEditor()
-    editor.load_file("main.caml")
-    editor.insert_object_to_target("CALayer", "name", "Target", t.getroot())
-    #editor.insert_object_to_target("CALayer", "nuggetId", "1", t.getroot())
-    editor.save_file("main_output.caml")
+    #editor = AnimationObjectEditor()
+    #editor.load_file("main.caml")
+    #editor.insert_object_to_target("CALayer", "name", "Target", t.getroot())
+    ##editor.insert_object_to_target("CALayer", "nuggetId", "1", t.getroot())
+    #editor.save_file("main_output.caml")
