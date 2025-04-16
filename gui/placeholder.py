@@ -1,4 +1,5 @@
 import sys
+import os
 from lib.main.main import CAFile
 from PySide6 import QtCore
 from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem
@@ -14,6 +15,16 @@ class MainWindow(QMainWindow):
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
         self.ui.tableWidget.setColumnCount(2)
         self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
+        self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
+        self.showFullPath = True
+
+    def toggleFilenameDisplay(self, event):
+        if hasattr(self, 'cafilepath'):
+            if self.showFullPath:
+                self.ui.filename.setText(os.path.basename(self.cafilepath))
+            else:
+                self.ui.filename.setText(self.cafilepath)
+            self.showFullPath = not self.showFullPath
 
     def openFile(self):
         self.ui.treeWidget.clear()
@@ -23,15 +34,22 @@ class MainWindow(QMainWindow):
         else:
             self.cafilepath = QFileDialog.getExistingDirectory(
                 self, "Select Folder", "")
-        self.ui.filename.setText(self.cafilepath)
-        self.cafile = CAFile(self.cafilepath)
+                
+        if self.cafilepath:
+            self.ui.filename.setText(self.cafilepath)
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.showFullPath = True
+            self.cafile = CAFile(self.cafilepath)
 
-        self.ui.treeWidget.addTopLevelItem(
-            QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id]))
+            self.ui.treeWidget.addTopLevelItem(
+                QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id]))
 
-        if len(self.cafile.rootlayer._sublayerorder) > 0:
-            self.treeWidgetChildren(
-                self.ui.treeWidget.topLevelItem(0), self.cafile.rootlayer)
+            if len(self.cafile.rootlayer._sublayerorder) > 0:
+                self.treeWidgetChildren(
+                    self.ui.treeWidget.topLevelItem(0), self.cafile.rootlayer)
+        else:
+            self.ui.filename.setText("No File Open")
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
 
     def treeWidgetChildren(self, item, layer):
         for id in layer._sublayerorder:

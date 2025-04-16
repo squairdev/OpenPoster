@@ -25,13 +25,12 @@ class Ui_OpenPoster(object):
         if not OpenPoster.objectName():
             OpenPoster.setObjectName(u"OpenPoster")
         OpenPoster.resize(1000, 600)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(OpenPoster.sizePolicy().hasHeightForWidth())
         OpenPoster.setSizePolicy(sizePolicy)
         OpenPoster.setMinimumSize(QSize(1000, 600))
-        OpenPoster.setMaximumSize(QSize(1000, 600))
         palette = QPalette()
         brush = QBrush(QColor(255, 255, 255, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -68,7 +67,7 @@ class Ui_OpenPoster(object):
 #endif
         OpenPoster.setPalette(palette)
         OpenPoster.setStyleSheet(u"QWidget {\n"
-"    color: #FFFFFF;\n"
+"    color: palette(text);\n"
 "    background-color: transparent;\n"
 "	spacing: 0px;\n"
 "}\n"
@@ -78,9 +77,9 @@ class Ui_OpenPoster(object):
 "}\n"
 "\n"
 "QWidget [cls=central] {\n"
-"    background-color: #1e1e1e;\n"
+"    background-color: palette(base);\n"
 "	border-radius: 0px;\n"
-"	border: 1px solid #4B4B4B;\n"
+"	border: 1px solid palette(mid);\n"
 "}\n"
 "\n"
 "QLabel {\n"
@@ -88,9 +87,9 @@ class Ui_OpenPoster(object):
 "}\n"
 "\n"
 "QToolButton {\n"
-"    background-color: #3b3b3b;\n"
+"    background-color: palette(button);\n"
 "    border: none;\n"
-"    color: #e8e8e8;\n"
+"    color: palette(text);\n"
 "    font-size: 14px;\n"
 "	min-height: 35px;\n"
 "	icon-size: 16px;\n"
@@ -105,30 +104,30 @@ class Ui_OpenPoster(object):
 "}\n"
 "\n"
 "QToolButton:pressed {\n"
-"    background-color: #535353;\n"
-"    color: #FFFFFF;\n"
+"    background-color: palette(dark);\n"
+"    color: palette(text);\n"
 "}\n"
 "\n"
 "QToolButton:checked {\n"
-"    background-color: #2860ca;\n"
-"    color: #FFFFFF;\n"
+"    background-color: palette(highlight);\n"
+"    color: palette(highlighted-text);\n"
 "}\n"
 "\n"
 "QCheckBox {\n"
 "	spacing: 8px;\n"
 "	font-size: 14px;\n"
-"}\n"
+"}"
+                        "\n"
 "\n"
 "QRadioButton {\n"
 "	spacing: 8px;\n"
 "	font-size: 14px;\n"
 "}\n"
-""
-                        "\n"
+"\n"
 "QLineEdit {\n"
 "	border: none;\n"
 "	background-color: transparent;\n"
-"	color: #FFFFFF;\n"
+"	color: palette(text);\n"
 "	font-size: 14px;\n"
 "}\n"
 "\n"
@@ -143,12 +142,12 @@ class Ui_OpenPoster(object):
 "}\n"
 "\n"
 "QScrollBar::handle {\n"
-"    background: #3b3b3b;\n"
+"    background: palette(mid);\n"
 "    border-radius: 4px;\n"
 "}\n"
 "\n"
 "QScrollBar::handle:pressed {\n"
-"    background: #535353;\n"
+"    background: palette(dark);\n"
 "}\n"
 "\n"
 "QScrollBar::add-line,\n"
@@ -162,26 +161,50 @@ class Ui_OpenPoster(object):
 "}\n"
 "\n"
 "QSlider::groove:horizontal {\n"
-"    background-color: #3b3b3b;\n"
+"    background-color: palette(mid);\n"
 "    height: 4px;\n"
 "	border-radius: 2px;\n"
 "}\n"
 "\n"
 "QSlider::handle:horizontal {\n"
-"    background-color: #535353;\n"
+"    background-color: palette(dark);\n"
 "    width: 8px;\n"
 "    margin: -8px 0;\n"
 "    border-radius: 4px;\n"
-"}\n"
+""
+                        "}\n"
 "\n"
 "QSlider::handle:horizontal:pressed {\n"
-"    background-color: #3b82f7;\n"
+"    background-color: palette(highlight);\n"
 "}\n"
 "\n"
-"QSl"
-                        "ider::tick:horizontal {\n"
-"    background-color: #535353;\n"
+"QSlider::tick:horizontal {\n"
+"    background-color: palette(dark);\n"
 "    width: 1px;\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: palette(button);\n"
+"    color: palette(text);\n"
+"    padding: 5px;\n"
+"    border: 1px solid palette(mid);\n"
+"    height: 30px;\n"
+"}\n"
+"\n"
+"QTableView, QTreeView {\n"
+"    border: none;\n"
+"    selection-background-color: palette(highlight);\n"
+"    selection-color: palette(highlighted-text);\n"
+"}\n"
+"\n"
+"QTreeView::item {\n"
+"    min-height: 30px;\n"
+"    padding: 2px;\n"
+"}\n"
+"\n"
+"QPushButton, QLabel[clickable=\"true\"] {\n"
+"    border-radius: 6px;\n"
+"    padding: 5px 10px;\n"
 "}\n"
 "")
         self.centralwidget = QWidget(OpenPoster)
@@ -221,15 +244,36 @@ class Ui_OpenPoster(object):
         self.body.setMinimumSize(QSize(0, 0))
         self.horizontalLayout = QHBoxLayout(self.body)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.treeWidget = QTreeWidget(self.body)
+        self.filesWidget = QWidget(self.body)
+        self.filesWidget.setObjectName(u"filesWidget")
+        self.filesWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        self.filesLayout = QVBoxLayout(self.filesWidget)
+        self.filesLayout.setObjectName(u"filesLayout")
+        self.filesLabel = QLabel(self.filesWidget)
+        self.filesLabel.setObjectName(u"filesLabel")
+
+        self.filesLayout.addWidget(self.filesLabel)
+
+        self.treeWidget = QTreeWidget(self.filesWidget)
         self.treeWidget.setObjectName(u"treeWidget")
         self.treeWidget.setColumnCount(2)
+        self.treeWidget.setIconSize(QSize(24, 24))
+        self.treeWidget.setIndentation(20)
+        self.treeWidget.setUniformRowHeights(True)
         self.treeWidget.header().setVisible(True)
+        self.treeWidget.header().setMinimumSectionSize(100)
+        self.treeWidget.header().setDefaultSectionSize(200)
+        self.treeWidget.header().setHighlightSections(True)
+        self.treeWidget.header().setStretchLastSection(True)
 
-        self.horizontalLayout.addWidget(self.treeWidget)
+        self.filesLayout.addWidget(self.treeWidget)
+
+
+        self.horizontalLayout.addWidget(self.filesWidget)
 
         self.verticalWidget = QWidget(self.body)
         self.verticalWidget.setObjectName(u"verticalWidget")
+        self.verticalWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
         self.verticalLayout = QVBoxLayout(self.verticalWidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.label = QLabel(self.verticalWidget)
@@ -246,6 +290,11 @@ class Ui_OpenPoster(object):
         self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
         self.tableWidget.setObjectName(u"tableWidget")
         self.tableWidget.setColumnCount(2)
+        self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
+        self.tableWidget.horizontalHeader().setDefaultSectionSize(220)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.verticalHeader().setMinimumSectionSize(25)
+        self.tableWidget.verticalHeader().setDefaultSectionSize(30)
 
         self.verticalLayout.addWidget(self.tableWidget)
 
@@ -254,11 +303,24 @@ class Ui_OpenPoster(object):
 
         self.openFile = QPushButton(self.centralwidget)
         self.openFile.setObjectName(u"openFile")
-        self.openFile.setGeometry(QRect(10, 1, 100, 41))
+        self.openFile.setGeometry(QRect(10, 10, 100, 41))
         self.openFile.setAutoFillBackground(True)
+        self.openFile.setStyleSheet(u"QPushButton {\n"
+"  border: 1.5px solid palette(highlight);\n"
+"  border-radius: 8px;\n"
+"  padding: 5px 10px;\n"
+"  background-color: rgba(80, 120, 200, 30);\n"
+"}\n"
+"QPushButton:pressed {\n"
+"  background-color: rgba(60, 100, 180, 120);\n"
+"}")
         self.filename = QLabel(self.centralwidget)
         self.filename.setObjectName(u"filename")
-        self.filename.setGeometry(QRect(120, 10, 271, 16))
+        self.filename.setGeometry(QRect(120, 20, 600, 30))
+        self.filename.setMinimumSize(QSize(200, 30))
+        self.filename.setMaximumSize(QSize(800, 16777215))
+        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
+        self.filename.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         OpenPoster.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(OpenPoster)
@@ -268,6 +330,7 @@ class Ui_OpenPoster(object):
 
     def retranslateUi(self, OpenPoster):
         OpenPoster.setWindowTitle(QCoreApplication.translate("OpenPoster", u"OpenPoster", None))
+        self.filesLabel.setText(QCoreApplication.translate("OpenPoster", u"Files", None))
         ___qtreewidgetitem = self.treeWidget.headerItem()
         ___qtreewidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None));
         ___qtreewidgetitem.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None));

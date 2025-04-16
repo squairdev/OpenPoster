@@ -233,7 +233,7 @@
   </property>
   <property name="styleSheet">
    <string notr="true">QWidget {
-    color: #FFFFFF;
+    color: palette(text);
     background-color: transparent;
 	spacing: 0px;
 }
@@ -243,9 +243,9 @@ QWidget:focus {
 }
 
 QWidget [cls=central] {
-    background-color: #1e1e1e;
+    background-color: palette(base);
 	border-radius: 0px;
-	border: 1px solid #4B4B4B;
+	border: 1px solid palette(mid);
 }
 
 QLabel {
@@ -253,9 +253,9 @@ QLabel {
 }
 
 QToolButton {
-    background-color: #3b3b3b;
+    background-color: palette(button);
     border: none;
-    color: #e8e8e8;
+    color: palette(text);
     font-size: 14px;
 	min-height: 35px;
 	icon-size: 16px;
@@ -270,13 +270,13 @@ QToolButton[cls=sidebarBtn] {
 }
 
 QToolButton:pressed {
-    background-color: #535353;
-    color: #FFFFFF;
+    background-color: palette(dark);
+    color: palette(text);
 }
 
 QToolButton:checked {
-    background-color: #2860ca;
-    color: #FFFFFF;
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
 }
 
 QCheckBox {
@@ -292,7 +292,7 @@ QRadioButton {
 QLineEdit {
 	border: none;
 	background-color: transparent;
-	color: #FFFFFF;
+	color: palette(text);
 	font-size: 14px;
 }
 
@@ -307,12 +307,12 @@ QScrollBar:horizontal {
 }
 
 QScrollBar::handle {
-    background: #3b3b3b;
+    background: palette(mid);
     border-radius: 4px;
 }
 
 QScrollBar::handle:pressed {
-    background: #535353;
+    background: palette(dark);
 }
 
 QScrollBar::add-line,
@@ -326,25 +326,49 @@ QScrollBar::sub-page {
 }
 
 QSlider::groove:horizontal {
-    background-color: #3b3b3b;
+    background-color: palette(mid);
     height: 4px;
 	border-radius: 2px;
 }
 
 QSlider::handle:horizontal {
-    background-color: #535353;
+    background-color: palette(dark);
     width: 8px;
     margin: -8px 0;
     border-radius: 4px;
 }
 
 QSlider::handle:horizontal:pressed {
-    background-color: #3b82f7;
+    background-color: palette(highlight);
 }
 
 QSlider::tick:horizontal {
-    background-color: #535353;
+    background-color: palette(dark);
     width: 1px;
+}
+
+QHeaderView::section {
+    background-color: palette(button);
+    color: palette(text);
+    padding: 5px;
+    border: 1px solid palette(mid);
+    height: 30px;
+}
+
+QTableView, QTreeView {
+    border: none;
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+}
+
+QTreeView::item {
+    min-height: 30px;
+    padding: 2px;
+}
+
+QPushButton, QLabel[clickable="true"] {
+    border-radius: 6px;
+    padding: 5px 10px;
 }
 </string>
   </property>
@@ -565,27 +589,70 @@ QSlider::tick:horizontal {
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QTreeWidget" name="treeWidget">
-       <property name="columnCount">
-        <number>2</number>
+      <widget class="QWidget" name="filesWidget" native="true">
+       <property name="styleSheet">
+        <string notr="true">border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;</string>
        </property>
-       <attribute name="headerVisible">
-        <bool>true</bool>
-       </attribute>
-       <column>
-        <property name="text">
-         <string>Name</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string>Type</string>
-        </property>
-       </column>
+       <layout class="QVBoxLayout" name="filesLayout">
+        <item>
+         <widget class="QLabel" name="filesLabel">
+          <property name="text">
+           <string>Files</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeWidget" name="treeWidget">
+          <property name="columnCount">
+           <number>2</number>
+          </property>
+          <attribute name="headerVisible">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="headerDefaultSectionSize">
+           <number>200</number>
+          </attribute>
+          <attribute name="headerMinimumSectionSize">
+           <number>100</number>
+          </attribute>
+          <attribute name="headerStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="headerHighlightSections">
+           <bool>true</bool>
+          </attribute>
+          <property name="iconSize">
+           <size>
+            <width>24</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="indentation">
+           <number>20</number>
+          </property>
+          <property name="uniformRowHeights">
+           <bool>true</bool>
+          </property>
+          <column>
+           <property name="text">
+            <string>Name</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Type</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </item>
      <item>
       <widget class="QWidget" name="verticalWidget" native="true">
+       <property name="styleSheet">
+        <string notr="true">border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;</string>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QLabel" name="label">
@@ -599,6 +666,21 @@ QSlider::tick:horizontal {
           <property name="columnCount">
            <number>2</number>
           </property>
+          <attribute name="horizontalHeaderDefaultSectionSize">
+           <number>220</number>
+          </attribute>
+          <attribute name="horizontalHeaderMinimumSectionSize">
+           <number>100</number>
+          </attribute>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="verticalHeaderDefaultSectionSize">
+           <number>30</number>
+          </attribute>
+          <attribute name="verticalHeaderMinimumSectionSize">
+           <number>25</number>
+          </attribute>
           <column>
            <property name="text">
             <string>Key</string>
@@ -620,13 +702,24 @@ QSlider::tick:horizontal {
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>1</y>
+      <y>10</y>
       <width>100</width>
       <height>41</height>
      </rect>
     </property>
     <property name="autoFillBackground">
      <bool>true</bool>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton {
+  border: 1.5px solid palette(highlight);
+  border-radius: 8px;
+  padding: 5px 10px;
+  background-color: rgba(80, 120, 200, 30);
+}
+QPushButton:pressed {
+  background-color: rgba(60, 100, 180, 120);
+}</string>
     </property>
     <property name="text">
      <string>Open File</string>
@@ -636,13 +729,31 @@ QSlider::tick:horizontal {
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>10</y>
-      <width>271</width>
-      <height>16</height>
+      <y>20</y>
+      <width>600</width>
+      <height>30</height>
      </rect>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>200</width>
+      <height>30</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>800</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;</string>
     </property>
     <property name="text">
      <string>No File Open</string>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
     </property>
    </widget>
   </widget>
