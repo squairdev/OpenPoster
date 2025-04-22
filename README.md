@@ -1,4 +1,3 @@
-<div align="center">
   <img width="225" height="225" src="/assets/openposter.png" alt="Logo">
 
 <h1>OpenPoster</h1>
@@ -12,10 +11,32 @@
 ## Building
 
 Install requirements:
-````pip install -r requirements.txt````
+````pip3 install -r requirements.txt````
 
-To build the QT UI:
-````pyside6-uic ui/mainwindow.ui -o ui/ui_mainwindow.py````
+To build the OpenPoster app:
+```python3 app.py```
 
-To build the application:
-```python3 compile.py```
+## Features
+
+### Inspector
+You can inspect these keys and their value:
+
+- name
+- type
+- keyPath
+- duration
+- beginTime
+- fillMode
+- repeatCount
+- calculationMode
+- values
+- keyTimes
+- states
+
+### Preview
+You can see the Base State's objects, such as imagges, text, and more.
+
+### File Inspector
+You can see all the files in the .ca file.
+
+<img width="1527" alt="image" src="https://github.com/user-attachments/assets/b918ce53-07eb-4da7-ac1d-50adb432759c" /><div align="center">
