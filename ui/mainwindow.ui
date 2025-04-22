@@ -1,786 +1,359 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<ui version="4.0">
- <class>OpenPoster</class>
- <widget class="QMainWindow" name="OpenPoster">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>1200</width>
-    <height>720</height>
-   </rect>
-  </property>
-  <property name="sizePolicy">
-   <!-- <sizepolicy hsizetype="Fixed" vsizetype="Fixed"> -->
-   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>1200</width>
-    <height>720</height>
-   </size>
-  </property>
-  <!-- <property name="maximumSize">
-   <size>
-    <width>1000</width>
-    <height>600</height>
-   </size>
-  </property> -->
-  <property name="palette">
-   <palette>
-    <active>
-     <colorrole role="WindowText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Button">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Text">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="ButtonText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Base">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Window">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="PlaceholderText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="128">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-    </active>
-    <inactive>
-     <colorrole role="WindowText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Button">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Text">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="ButtonText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Base">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Window">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="PlaceholderText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="128">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-    </inactive>
-    <disabled>
-     <colorrole role="WindowText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Button">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Text">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="ButtonText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Base">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="Window">
-      <brush brushstyle="SolidPattern">
-       <color alpha="0">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
-       </color>
-      </brush>
-     </colorrole>
-     <colorrole role="PlaceholderText">
-      <brush brushstyle="SolidPattern">
-       <color alpha="128">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
-       </color>
-      </brush>
-     </colorrole>
-    </disabled>
-   </palette>
-  </property>
-  <property name="windowTitle">
-   <string>OpenPoster</string>
-  </property>
-  <property name="styleSheet">
-   <string notr="true">QWidget {
-    color: palette(text);
-    background-color: transparent;
-	spacing: 0px;
-}
+# -*- coding: utf-8 -*-
 
-QWidget:focus {
-    outline: none;
-}
+################################################################################
+## Form generated from reading UI file 'mainwindow.ui'
+##
+## Created by: Qt User Interface Compiler version 6.9.0
+##
+## WARNING! All changes made in this file will be lost when recompiling UI file!
+################################################################################
 
-QWidget [cls=central] {
-    background-color: palette(base);
-	border-radius: 12px;
-	border: 1px solid palette(mid);
-}
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
+    QFont, QFontDatabase, QGradient, QIcon,
+    QImage, QKeySequence, QLinearGradient, QPainter,
+    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
+    QMainWindow, QPushButton, QSizePolicy, QTableWidget, QSplitter,
+    QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QGraphicsView, QGraphicsScene,
+    QWidget)
 
-QLabel {
-    font-size: 14px;
-}
+class Ui_OpenPoster(object):
+    def setupUi(self, OpenPoster):
+        if not OpenPoster.objectName():
+            OpenPoster.setObjectName(u"OpenPoster")
+        OpenPoster.resize(1280, 800)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(OpenPoster.sizePolicy().hasHeightForWidth())
+        OpenPoster.setSizePolicy(sizePolicy)
+        OpenPoster.setMinimumSize(QSize(1280, 800))
+        palette = QPalette()
+        brush = QBrush(QColor(255, 255, 255, 255))
+        brush.setStyle(Qt.BrushStyle.SolidPattern)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.WindowText, brush)
+        brush1 = QBrush(QColor(0, 0, 0, 0))
+        brush1.setStyle(Qt.BrushStyle.SolidPattern)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Button, brush1)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Text, brush)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.ButtonText, brush)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Base, brush1)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Window, brush1)
+        brush2 = QBrush(QColor(255, 255, 255, 128))
+        brush2.setStyle(Qt.BrushStyle.SolidPattern)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+        palette.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.PlaceholderText, brush2)
+#endif
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.WindowText, brush)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Button, brush1)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Text, brush)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.ButtonText, brush)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Base, brush1)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Window, brush1)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+        palette.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.PlaceholderText, brush2)
+#endif
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, brush)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, brush1)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, brush)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, brush)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, brush1)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Window, brush1)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+        palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.PlaceholderText, brush2)
+#endif
+        OpenPoster.setPalette(palette)
+        OpenPoster.setStyleSheet(u"QWidget {\n"
+"    color: palette(text);\n"
+"    background-color: transparent;\n"
+"	spacing: 0px;\n"
+"}\n"
+"\n"
+"QWidget:focus {\n"
+"    outline: none;\n"
+"}\n"
+"\n"
+"QWidget [cls=central] {\n"
+"    background-color: palette(base);\n"
+"	border-radius: 0px;\n"
+"	border: 1px solid palette(mid);\n"
+"}\n"
+"\n"
+"QLabel {\n"
+"    font-size: 14px;\n"
+"}\n"
+"\n"
+"QToolButton {\n"
+"    background-color: palette(button);\n"
+"    border: none;\n"
+"    color: palette(text);\n"
+"    font-size: 14px;\n"
+"	min-height: 35px;\n"
+"	icon-size: 16px;\n"
+"	padding-left: 10px;\n"
+"	padding-right: 10px;\n"
+"	border-radius: 8px;\n"
+"}\n"
+"\n"
+"QToolButton[cls=sidebarBtn] {\n"
+"    background-color: transparent;\n"
+"	icon-size: 24px;\n"
+"}\n"
+"\n"
+"QToolButton:pressed {\n"
+"    background-color: palette(dark);\n"
+"    color: palette(text);\n"
+"}\n"
+"\n"
+"QToolButton:checked {\n"
+"    background-color: palette(highlight);\n"
+"    color: palette(highlighted-text);\n"
+"}\n"
+"\n"
+"QCheckBox {\n"
+"	spacing: 8px;\n"
+"	font-size: 14px;\n"
+"}"
+                        "\n"
+"\n"
+"QRadioButton {\n"
+"	spacing: 8px;\n"
+"	font-size: 14px;\n"
+"}\n"
+"\n"
+"QLineEdit {\n"
+"	border: none;\n"
+"	background-color: transparent;\n"
+"	color: palette(text);\n"
+"	font-size: 14px;\n"
+"}\n"
+"\n"
+"QScrollBar:vertical {\n"
+"    background: transparent;\n"
+"    width: 8px;\n"
+"}\n"
+"\n"
+"QScrollBar:horizontal {\n"
+"    background: transparent;\n"
+"    height: 8px;\n"
+"}\n"
+"\n"
+"QScrollBar::handle {\n"
+"    background: palette(mid);\n"
+"    border-radius: 4px;\n"
+"}\n"
+"\n"
+"QScrollBar::handle:pressed {\n"
+"    background: palette(dark);\n"
+"}\n"
+"\n"
+"QScrollBar::add-line,\n"
+"QScrollBar::sub-line {\n"
+"    background: none;\n"
+"}\n"
+"\n"
+"QScrollBar::add-page,\n"
+"QScrollBar::sub-page {\n"
+"    background: none;\n"
+"}\n"
+"\n"
+"QSlider::groove:horizontal {\n"
+"    background-color: palette(mid);\n"
+"    height: 4px;\n"
+"	border-radius: 2px;\n"
+"}\n"
+"\n"
+"QSlider::handle:horizontal {\n"
+"    background-color: palette(dark);\n"
+"    width: 8px;\n"
+"    margin: -8px 0;\n"
+"    border-radius: 4px;\n"
+""
+                        "}\n"
+"\n"
+"QSlider::handle:horizontal:pressed {\n"
+"    background-color: palette(highlight);\n"
+"}\n"
+"\n"
+"QSlider::tick:horizontal {\n"
+"    background-color: palette(dark);\n"
+"    width: 1px;\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: palette(button);\n"
+"    color: palette(text);\n"
+"    padding: 5px;\n"
+"    border: 1px solid palette(mid);\n"
+"    height: 30px;\n"
+"}\n"
+"\n"
+"QTableView, QTreeView {\n"
+"    border: none;\n"
+"    selection-background-color: palette(highlight);\n"
+"    selection-color: palette(highlighted-text);\n"
+"}\n"
+"\n"
+"QTreeView::item {\n"
+"    min-height: 30px;\n"
+"    padding: 2px;\n"
+"}\n"
+"\n"
+"QPushButton, QLabel[clickable=\"true\"] {\n"
+"    border-radius: 6px;\n"
+"    padding: 5px 10px;\n"
+"}\n"
+"")
+        self.centralwidget = QWidget(OpenPoster)
+        self.centralwidget.setObjectName(u"centralwidget")
+        sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
+        self.centralwidget.setSizePolicy(sizePolicy)
+        
+        self.verticalLayout = QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        
+        self.headerWidget = QWidget(self.centralwidget)
+        self.headerWidget.setObjectName(u"headerWidget")
+        self.headerWidget.setMaximumHeight(60)
+        
+        self.horizontalLayout_header = QHBoxLayout(self.headerWidget)
+        self.horizontalLayout_header.setObjectName(u"horizontalLayout_header")
+        
+        self.openFile = QPushButton(self.headerWidget)
+        self.openFile.setObjectName(u"openFile")
+        self.openFile.setAutoFillBackground(True)
+        self.openFile.setStyleSheet(u"QPushButton {\n"
+"  border: 1.5px solid palette(highlight);\n"
+"  border-radius: 8px;\n"
+"  padding: 5px 10px;\n"
+"  background-color: rgba(80, 120, 200, 30);\n"
+"}\n"
+"QPushButton:pressed {\n"
+"  background-color: rgba(60, 100, 180, 120);\n"
+"}")
+        
+        self.horizontalLayout_header.addWidget(self.openFile)
+        
+        self.filename = QLabel(self.headerWidget)
+        self.filename.setObjectName(u"filename")
+        self.filename.setMinimumSize(QSize(200, 30))
+        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
+        self.filename.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        
+        self.horizontalLayout_header.addWidget(self.filename)
+        self.horizontalLayout_header.addStretch()
+        
+        self.verticalLayout.addWidget(self.headerWidget)
+        
+        self.mainSplitter = QSplitter(self.centralwidget)
+        self.mainSplitter.setObjectName(u"mainSplitter")
+        self.mainSplitter.setOrientation(Qt.Horizontal)
+        
+        self.filesWidget = QWidget(self.mainSplitter)
+        self.filesWidget.setObjectName(u"filesWidget")
+        self.filesWidget.setMinimumWidth(250)
+        self.filesWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.filesLayout = QVBoxLayout(self.filesWidget)
+        self.filesLayout.setObjectName(u"filesLayout")
+        
+        self.filesLabel = QLabel(self.filesWidget)
+        self.filesLabel.setObjectName(u"filesLabel")
+        
+        self.filesLayout.addWidget(self.filesLabel)
+        
+        self.treeWidget = QTreeWidget(self.filesWidget)
+        self.treeWidget.setObjectName(u"treeWidget")
+        self.treeWidget.setColumnCount(4)
+        self.treeWidget.setIconSize(QSize(24, 24))
+        self.treeWidget.setIndentation(20)
+        self.treeWidget.setUniformRowHeights(True)
+        self.treeWidget.header().setVisible(True)
+        self.treeWidget.header().setMinimumSectionSize(100)
+        self.treeWidget.header().setDefaultSectionSize(200)
+        self.treeWidget.header().setHighlightSections(True)
+        self.treeWidget.header().setStretchLastSection(True)
+        
+        self.filesLayout.addWidget(self.treeWidget)
+        
+        self.previewWidget = QWidget(self.mainSplitter)
+        self.previewWidget.setObjectName(u"previewWidget")
+        self.previewWidget.setMinimumWidth(400)
+        self.previewWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.previewLayout = QVBoxLayout(self.previewWidget)
+        self.previewLayout.setObjectName(u"previewLayout")
+        
+        self.previewLabel = QLabel(self.previewWidget)
+        self.previewLabel.setObjectName(u"previewLabel")
+        self.previewLabel.setText("Preview")
+        
+        self.previewLayout.addWidget(self.previewLabel)
+        
+        self.graphicsView = QGraphicsView(self.previewWidget)
+        self.graphicsView.setObjectName(u"graphicsView")
+        self.graphicsView.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+        
+        self.previewLayout.addWidget(self.graphicsView)
+        
+        self.inspectorWidget = QWidget(self.mainSplitter)
+        self.inspectorWidget.setObjectName(u"inspectorWidget")
+        self.inspectorWidget.setMinimumWidth(250)
+        self.inspectorWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.inspectorLayout = QVBoxLayout(self.inspectorWidget)
+        self.inspectorLayout.setObjectName(u"inspectorLayout")
+        
+        self.inspectorLabel = QLabel(self.inspectorWidget)
+        self.inspectorLabel.setObjectName(u"inspectorLabel")
+        
+        self.inspectorLayout.addWidget(self.inspectorLabel)
+        
+        self.tableWidget = QTableWidget(self.inspectorWidget)
+        if (self.tableWidget.columnCount() < 2):
+            self.tableWidget.setColumnCount(2)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        self.tableWidget.setObjectName(u"tableWidget")
+        self.tableWidget.setColumnCount(2)
+        self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
+        self.tableWidget.horizontalHeader().setDefaultSectionSize(120)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.verticalHeader().setMinimumSectionSize(25)
+        self.tableWidget.verticalHeader().setDefaultSectionSize(30)
+        
+        self.inspectorLayout.addWidget(self.tableWidget)
+        
+        self.mainSplitter.setSizes([300, 600, 300])
+        self.verticalLayout.addWidget(self.mainSplitter)
+        
+        OpenPoster.setCentralWidget(self.centralwidget)
 
-QToolButton {
-    background-color: palette(button);
-    border: none;
-    color: palette(text);
-    font-size: 14px;
-	min-height: 35px;
-	icon-size: 16px;
-	padding-left: 10px;
-	padding-right: 10px;
-	border-radius: 12px;
-}
+        self.retranslateUi(OpenPoster)
 
-QToolButton[cls=sidebarBtn] {
-    background-color: transparent;
-	icon-size: 24px;
-}
+        QMetaObject.connectSlotsByName(OpenPoster)
+    # setupUi
 
-QToolButton:pressed {
-    background-color: palette(dark);
-    color: palette(text);
-}
+    def retranslateUi(self, OpenPoster):
+        OpenPoster.setWindowTitle(QCoreApplication.translate("OpenPoster", u"OpenPoster", None))
+        self.filesLabel.setText(QCoreApplication.translate("OpenPoster", u"Files", None))
+        ___qtreewidgetitem = self.treeWidget.headerItem()
+        ___qtreewidgetitem.setText(3, QCoreApplication.translate("OpenPoster", u"ParentID", None))
+        ___qtreewidgetitem.setText(2, QCoreApplication.translate("OpenPoster", u"ID", None))
+        ___qtreewidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None))
+        ___qtreewidgetitem.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None))
+        self.previewLabel.setText(QCoreApplication.translate("OpenPoster", u"Preview", None))
+        self.inspectorLabel.setText(QCoreApplication.translate("OpenPoster", u"Inspector", None))
+        ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("OpenPoster", u"Key", None))
+        ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("OpenPoster", u"Value", None))
+        self.openFile.setText(QCoreApplication.translate("OpenPoster", u"Open File", None))
+        self.filename.setText(QCoreApplication.translate("OpenPoster", u"No File Open", None))
+    # retranslateUi
 
-QToolButton:checked {
-    background-color: palette(highlight);
-    color: palette(highlighted-text);
-}
-
-QCheckBox {
-	spacing: 8px;
-	font-size: 14px;
-	border-radius: 8px;
-}
-
-QRadioButton {
-	spacing: 8px;
-	font-size: 14px;
-	border-radius: 8px;
-}
-
-QLineEdit {
-	border: none;
-	background-color: transparent;
-	color: palette(text);
-	font-size: 14px;
-}
-
-QScrollBar:vertical {
-    background: transparent;
-    width: 8px;
-}
-
-QScrollBar:horizontal {
-    background: transparent;
-    height: 8px;
-}
-
-QScrollBar::handle {
-    background: palette(mid);
-    border-radius: 5px;
-}
-
-QScrollBar::handle:pressed {
-    background: palette(dark);
-}
-
-QScrollBar::add-line,
-QScrollBar::sub-line {
-    background: none;
-}
-
-QScrollBar::add-page,
-QScrollBar::sub-page {
-    background: none;
-}
-
-QSlider::groove:horizontal {
-    background-color: palette(mid);
-    height: 4px;
-	border-radius: 3px;
-}
-
-QSlider::handle:horizontal {
-    background-color: palette(dark);
-    width: 12px;
-    margin: -8px 0;
-    border-radius: 6px;
-}
-
-QSlider::handle:horizontal:pressed {
-    background-color: palette(highlight);
-}
-
-QSlider::tick:horizontal {
-    background-color: palette(dark);
-    width: 1px;
-}
-
-QHeaderView::section {
-    background-color: palette(button);
-    color: palette(text);
-    padding: 5px;
-    border: 1px solid palette(mid);
-    height: 30px;
-}
-
-QTableView, QTreeView {
-    border: none;
-    selection-background-color: palette(highlight);
-    selection-color: palette(highlighted-text);
-    border-radius: 8px;
-}
-
-QTableView QHeaderView::section, QTreeView QHeaderView::section {
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-}
-
-QTreeView::item {
-    min-height: 30px;
-    padding: 2px;
-}
-
-QPushButton, QLabel[clickable="true"] {
-    border-radius: 12px;
-    padding: 5px 10px;
-}
-</string>
-  </property>
-  <widget class="QWidget" name="centralwidget">
-   <property name="palette">
-    <palette>
-     <active>
-      <colorrole role="WindowText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Button">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Text">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Base">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Window">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="PlaceholderText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="128">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </active>
-     <inactive>
-      <colorrole role="WindowText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Button">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Text">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Base">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Window">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="PlaceholderText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="128">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </inactive>
-     <disabled>
-      <colorrole role="WindowText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Button">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Text">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="ButtonText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Base">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="Window">
-       <brush brushstyle="SolidPattern">
-        <color alpha="0">
-         <red>0</red>
-         <green>0</green>
-         <blue>0</blue>
-        </color>
-       </brush>
-      </colorrole>
-      <colorrole role="PlaceholderText">
-       <brush brushstyle="SolidPattern">
-        <color alpha="128">
-         <red>255</red>
-         <green>255</green>
-         <blue>255</blue>
-        </color>
-       </brush>
-      </colorrole>
-     </disabled>
-    </palette>
-   </property>
-   <widget class="QWidget" name="body" native="true">
-    <property name="geometry">
-     <rect>
-      <x>12</x>
-      <y>60</y>
-      <width>976</width>
-      <height>528</height>
-     </rect>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>0</width>
-      <height>0</height>
-     </size>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QWidget" name="filesWidget" native="true">
-       <property name="styleSheet">
-        <string notr="true">border: 1px solid #4B4B4B; border-radius: 12px; padding: 8px;</string>
-       </property>
-       <layout class="QVBoxLayout" name="filesLayout">
-        <item>
-         <widget class="QLabel" name="filesLabel">
-          <property name="text">
-           <string>Files</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTreeWidget" name="treeWidget">
-          <property name="columnCount">
-           <number>2</number>
-          </property>
-          <attribute name="headerVisible">
-           <bool>true</bool>
-          </attribute>
-          <attribute name="headerDefaultSectionSize">
-           <number>200</number>
-          </attribute>
-          <attribute name="headerMinimumSectionSize">
-           <number>100</number>
-          </attribute>
-          <attribute name="headerStretchLastSection">
-           <bool>true</bool>
-          </attribute>
-          <attribute name="headerHighlightSections">
-           <bool>true</bool>
-          </attribute>
-          <property name="iconSize">
-           <size>
-            <width>24</width>
-            <height>24</height>
-           </size>
-          </property>
-          <property name="indentation">
-           <number>20</number>
-          </property>
-          <property name="uniformRowHeights">
-           <bool>true</bool>
-          </property>
-          <column>
-           <property name="text">
-            <string>Name</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Type</string>
-           </property>
-          </column>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="QWidget" name="verticalWidget" native="true">
-       <property name="styleSheet">
-        <string notr="true">border: 1px solid #4B4B4B; border-radius: 12px; padding: 8px;</string>
-       </property>
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Inspector</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTableWidget" name="tableWidget">
-          <property name="columnCount">
-           <number>2</number>
-          </property>
-          <attribute name="horizontalHeaderDefaultSectionSize">
-           <number>220</number>
-          </attribute>
-          <attribute name="horizontalHeaderMinimumSectionSize">
-           <number>100</number>
-          </attribute>
-          <attribute name="horizontalHeaderStretchLastSection">
-           <bool>true</bool>
-          </attribute>
-          <attribute name="verticalHeaderDefaultSectionSize">
-           <number>30</number>
-          </attribute>
-          <attribute name="verticalHeaderMinimumSectionSize">
-           <number>25</number>
-          </attribute>
-          <column>
-           <property name="text">
-            <string>Key</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Value</string>
-           </property>
-          </column>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-    </layout>
-   </widget>
-   <widget class="QPushButton" name="openFile">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>100</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>0</width>
-      <height>30</height>
-     </size>
-    </property>
-    <property name="autoFillBackground">
-     <bool>true</bool>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">QPushButton {
-  border: 1.5px solid palette(highlight);
-  border-radius: 15px;
-  padding: 5px 10px;
-  background-color: rgba(80, 120, 200, 30);
-}
-QPushButton:pressed {
-  background-color: rgba(60, 100, 180, 120);
-}</string>
-    </property>
-    <property name="text">
-     <string>Open File</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="filename">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>20</y>
-      <width>600</width>
-      <height>30</height>
-     </rect>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>200</width>
-      <height>30</height>
-     </size>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>800</width>
-      <height>16777215</height>
-     </size>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">border: 1.5px solid palette(highlight); border-radius: 15px; padding: 5px 10px; color: #666666; font-style: italic;</string>
-    </property>
-    <property name="text">
-     <string>No File Open</string>
-    </property>
-    <property name="cursor">
-     <cursorShape>PointingHandCursor</cursorShape>
-    </property>
-   </widget>
-   <widget class="QWidget" name="previewWidget" native="true">
-    <property name="styleSheet">
-     <string notr="true">QWidget [cls=preview] {
-	background-color: palette(window);
-	border: 1px solid palette(mid);
-	border-radius: 12px;
-}</string>
-    </property>
-   </widget>
-  </widget>
- </widget>
- <resources/>
- <connections/>
-</ui>
