@@ -16,21 +16,21 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QLabel,
-    QMainWindow, QPushButton, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+    QMainWindow, QPushButton, QSizePolicy, QTableWidget, QSplitter,
+    QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QGraphicsView, QGraphicsScene,
     QWidget)
 
 class Ui_OpenPoster(object):
     def setupUi(self, OpenPoster):
         if not OpenPoster.objectName():
             OpenPoster.setObjectName(u"OpenPoster")
-        OpenPoster.resize(1000, 600)
+        OpenPoster.resize(1280, 800)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(OpenPoster.sizePolicy().hasHeightForWidth())
         OpenPoster.setSizePolicy(sizePolicy)
-        OpenPoster.setMinimumSize(QSize(1000, 600))
+        OpenPoster.setMinimumSize(QSize(1280, 800))
         palette = QPalette()
         brush = QBrush(QColor(255, 255, 255, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -209,101 +209,21 @@ class Ui_OpenPoster(object):
 "")
         self.centralwidget = QWidget(OpenPoster)
         self.centralwidget.setObjectName(u"centralwidget")
-        palette1 = QPalette()
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.WindowText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Button, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Text, brush)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.ButtonText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Base, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.Window, brush1)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
-        palette1.setBrush(QPalette.ColorGroup.Active, QPalette.ColorRole.PlaceholderText, brush2)
-#endif
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.WindowText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Button, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Text, brush)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.ButtonText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Base, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Window, brush1)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
-        palette1.setBrush(QPalette.ColorGroup.Inactive, QPalette.ColorRole.PlaceholderText, brush2)
-#endif
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, brush)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, brush)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, brush1)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Window, brush1)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
-        palette1.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.PlaceholderText, brush2)
-#endif
-        self.centralwidget.setPalette(palette1)
-        self.body = QWidget(self.centralwidget)
-        self.body.setObjectName(u"body")
-        self.body.setGeometry(QRect(12, 60, 976, 528))
-        self.body.setMinimumSize(QSize(0, 0))
-        self.horizontalLayout = QHBoxLayout(self.body)
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.filesWidget = QWidget(self.body)
-        self.filesWidget.setObjectName(u"filesWidget")
-        self.filesWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
-        self.filesLayout = QVBoxLayout(self.filesWidget)
-        self.filesLayout.setObjectName(u"filesLayout")
-        self.filesLabel = QLabel(self.filesWidget)
-        self.filesLabel.setObjectName(u"filesLabel")
-
-        self.filesLayout.addWidget(self.filesLabel)
-
-        self.treeWidget = QTreeWidget(self.filesWidget)
-        self.treeWidget.setObjectName(u"treeWidget")
-        self.treeWidget.setColumnCount(2)
-        self.treeWidget.setIconSize(QSize(24, 24))
-        self.treeWidget.setIndentation(20)
-        self.treeWidget.setUniformRowHeights(True)
-        self.treeWidget.header().setVisible(True)
-        self.treeWidget.header().setMinimumSectionSize(100)
-        self.treeWidget.header().setDefaultSectionSize(200)
-        self.treeWidget.header().setHighlightSections(True)
-        self.treeWidget.header().setStretchLastSection(True)
-
-        self.filesLayout.addWidget(self.treeWidget)
-
-
-        self.horizontalLayout.addWidget(self.filesWidget)
-
-        self.verticalWidget = QWidget(self.body)
-        self.verticalWidget.setObjectName(u"verticalWidget")
-        self.verticalWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
-        self.verticalLayout = QVBoxLayout(self.verticalWidget)
+        sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
+        self.centralwidget.setSizePolicy(sizePolicy)
+        
+        self.verticalLayout = QVBoxLayout(self.centralwidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
-        self.label = QLabel(self.verticalWidget)
-        self.label.setObjectName(u"label")
-
-        self.verticalLayout.addWidget(self.label)
-
-        self.tableWidget = QTableWidget(self.verticalWidget)
-        if (self.tableWidget.columnCount() < 2):
-            self.tableWidget.setColumnCount(2)
-        __qtablewidgetitem = QTableWidgetItem()
-        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
-        __qtablewidgetitem1 = QTableWidgetItem()
-        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
-        self.tableWidget.setObjectName(u"tableWidget")
-        self.tableWidget.setColumnCount(2)
-        self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
-        self.tableWidget.horizontalHeader().setDefaultSectionSize(220)
-        self.tableWidget.horizontalHeader().setStretchLastSection(True)
-        self.tableWidget.verticalHeader().setMinimumSectionSize(25)
-        self.tableWidget.verticalHeader().setDefaultSectionSize(30)
-
-        self.verticalLayout.addWidget(self.tableWidget)
-
-
-        self.horizontalLayout.addWidget(self.verticalWidget)
-
-        self.openFile = QPushButton(self.centralwidget)
+        
+        self.headerWidget = QWidget(self.centralwidget)
+        self.headerWidget.setObjectName(u"headerWidget")
+        self.headerWidget.setMaximumHeight(60)
+        
+        self.horizontalLayout_header = QHBoxLayout(self.headerWidget)
+        self.horizontalLayout_header.setObjectName(u"horizontalLayout_header")
+        
+        self.openFile = QPushButton(self.headerWidget)
         self.openFile.setObjectName(u"openFile")
-        self.openFile.setGeometry(QRect(10, 10, 100, 41))
         self.openFile.setAutoFillBackground(True)
         self.openFile.setStyleSheet(u"QPushButton {\n"
 "  border: 1.5px solid palette(highlight);\n"
@@ -314,13 +234,150 @@ class Ui_OpenPoster(object):
 "QPushButton:pressed {\n"
 "  background-color: rgba(60, 100, 180, 120);\n"
 "}")
-        self.filename = QLabel(self.centralwidget)
+        
+        self.horizontalLayout_header.addWidget(self.openFile)
+        
+        self.filename = QLabel(self.headerWidget)
         self.filename.setObjectName(u"filename")
-        self.filename.setGeometry(QRect(120, 20, 600, 30))
         self.filename.setMinimumSize(QSize(200, 30))
-        self.filename.setMaximumSize(QSize(800, 16777215))
         self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
         self.filename.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        
+        self.horizontalLayout_header.addWidget(self.filename)
+        self.horizontalLayout_header.addStretch()
+        
+        self.verticalLayout.addWidget(self.headerWidget)
+        
+        self.mainSplitter = QSplitter(self.centralwidget)
+        self.mainSplitter.setObjectName(u"mainSplitter")
+        self.mainSplitter.setOrientation(Qt.Horizontal)
+        
+        self.filesWidget = QWidget(self.mainSplitter)
+        self.filesWidget.setObjectName(u"filesWidget")
+        self.filesWidget.setMinimumWidth(250)
+        self.filesWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.filesLayout = QVBoxLayout(self.filesWidget)
+        self.filesLayout.setObjectName(u"filesLayout")
+        self.filesLayout.setContentsMargins(0, 0, 0, 0)
+        self.filesLayout.setSpacing(0)
+        
+        # Create a vertical splitter for the files and states sections
+        self.filesSplitter = QSplitter(self.filesWidget)
+        self.filesSplitter.setObjectName(u"filesSplitter")
+        self.filesSplitter.setOrientation(Qt.Vertical)
+        
+        # Create files section
+        self.filesSection = QWidget(self.filesSplitter)
+        self.filesSection.setObjectName(u"filesSection")
+        
+        self.filesSectionLayout = QVBoxLayout(self.filesSection)
+        self.filesSectionLayout.setObjectName(u"filesSectionLayout")
+        
+        self.filesLabel = QLabel(self.filesSection)
+        self.filesLabel.setObjectName(u"filesLabel")
+        
+        self.filesSectionLayout.addWidget(self.filesLabel)
+        
+        self.treeWidget = QTreeWidget(self.filesSection)
+        self.treeWidget.setObjectName(u"treeWidget")
+        self.treeWidget.setColumnCount(4)
+        self.treeWidget.setIconSize(QSize(24, 24))
+        self.treeWidget.setIndentation(20)
+        self.treeWidget.setUniformRowHeights(True)
+        self.treeWidget.header().setVisible(True)
+        self.treeWidget.header().setMinimumSectionSize(100)
+        self.treeWidget.header().setDefaultSectionSize(200)
+        self.treeWidget.header().setHighlightSections(True)
+        self.treeWidget.header().setStretchLastSection(True)
+        
+        self.filesSectionLayout.addWidget(self.treeWidget)
+        
+        # Create states section
+        self.statesSection = QWidget(self.filesSplitter)
+        self.statesSection.setObjectName(u"statesSection")
+        
+        self.statesSectionLayout = QVBoxLayout(self.statesSection)
+        self.statesSectionLayout.setObjectName(u"statesSectionLayout")
+        
+        self.statesLabel = QLabel(self.statesSection)
+        self.statesLabel.setObjectName(u"statesLabel")
+        
+        self.statesSectionLayout.addWidget(self.statesLabel)
+        
+        self.statesTreeWidget = QTreeWidget(self.statesSection)
+        self.statesTreeWidget.setObjectName(u"statesTreeWidget")
+        self.statesTreeWidget.setColumnCount(3)
+        self.statesTreeWidget.setIconSize(QSize(24, 24))
+        self.statesTreeWidget.setIndentation(20)
+        self.statesTreeWidget.setUniformRowHeights(True)
+        self.statesTreeWidget.header().setVisible(True)
+        self.statesTreeWidget.header().setMinimumSectionSize(100)
+        self.statesTreeWidget.header().setDefaultSectionSize(200)
+        self.statesTreeWidget.header().setHighlightSections(True)
+        self.statesTreeWidget.header().setStretchLastSection(True)
+        
+        self.statesSectionLayout.addWidget(self.statesTreeWidget)
+        
+        # Add the splitter to the files layout
+        self.filesLayout.addWidget(self.filesSplitter)
+        
+        # Set the sizes for the vertical splitter to make them equal
+        self.filesSplitter.setSizes([1000, 1000])
+        
+        self.previewWidget = QWidget(self.mainSplitter)
+        self.previewWidget.setObjectName(u"previewWidget")
+        self.previewWidget.setMinimumWidth(400)
+        self.previewWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.previewLayout = QVBoxLayout(self.previewWidget)
+        self.previewLayout.setObjectName(u"previewLayout")
+        
+        self.previewLabel = QLabel(self.previewWidget)
+        self.previewLabel.setObjectName(u"previewLabel")
+        self.previewLabel.setText("Preview")
+        
+        self.previewLayout.addWidget(self.previewLabel)
+        
+        self.graphicsView = QGraphicsView(self.previewWidget)
+        self.graphicsView.setObjectName(u"graphicsView")
+        self.graphicsView.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+        
+        self.previewLayout.addWidget(self.graphicsView)
+        
+        self.inspectorWidget = QWidget(self.mainSplitter)
+        self.inspectorWidget.setObjectName(u"inspectorWidget")
+        self.inspectorWidget.setMinimumWidth(250)
+        self.inspectorWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
+        
+        self.inspectorLayout = QVBoxLayout(self.inspectorWidget)
+        self.inspectorLayout.setObjectName(u"inspectorLayout")
+        
+        self.inspectorLabel = QLabel(self.inspectorWidget)
+        self.inspectorLabel.setObjectName(u"inspectorLabel")
+        
+        self.inspectorLayout.addWidget(self.inspectorLabel)
+        
+        self.tableWidget = QTableWidget(self.inspectorWidget)
+        if (self.tableWidget.columnCount() < 2):
+            self.tableWidget.setColumnCount(2)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        self.tableWidget.setObjectName(u"tableWidget")
+        self.tableWidget.setColumnCount(2)
+        self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
+        self.tableWidget.horizontalHeader().setDefaultSectionSize(120)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.verticalHeader().setMinimumSectionSize(25)
+        self.tableWidget.verticalHeader().setDefaultSectionSize(30)
+        
+        self.inspectorLayout.addWidget(self.tableWidget)
+        
+        self.mainSplitter.setSizes([300, 600, 300])
+        self.verticalLayout.addWidget(self.mainSplitter)
+        
         OpenPoster.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(OpenPoster)
@@ -332,13 +389,23 @@ class Ui_OpenPoster(object):
         OpenPoster.setWindowTitle(QCoreApplication.translate("OpenPoster", u"OpenPoster", None))
         self.filesLabel.setText(QCoreApplication.translate("OpenPoster", u"Files", None))
         ___qtreewidgetitem = self.treeWidget.headerItem()
-        ___qtreewidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None));
-        ___qtreewidgetitem.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None));
-        self.label.setText(QCoreApplication.translate("OpenPoster", u"Inspector", None))
+        ___qtreewidgetitem.setText(3, QCoreApplication.translate("OpenPoster", u"ParentID", None))
+        ___qtreewidgetitem.setText(2, QCoreApplication.translate("OpenPoster", u"ID", None))
+        ___qtreewidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None))
+        ___qtreewidgetitem.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None))
+        
+        self.statesLabel.setText(QCoreApplication.translate("OpenPoster", u"States", None))
+        ___qstateswidgetitem = self.statesTreeWidget.headerItem()
+        ___qstateswidgetitem.setText(2, QCoreApplication.translate("OpenPoster", u"Value", None))
+        ___qstateswidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None))
+        ___qstateswidgetitem.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None))
+        
+        self.previewLabel.setText(QCoreApplication.translate("OpenPoster", u"Preview", None))
+        self.inspectorLabel.setText(QCoreApplication.translate("OpenPoster", u"Inspector", None))
         ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
-        ___qtablewidgetitem.setText(QCoreApplication.translate("OpenPoster", u"Key", None));
+        ___qtablewidgetitem.setText(QCoreApplication.translate("OpenPoster", u"Key", None))
         ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
-        ___qtablewidgetitem1.setText(QCoreApplication.translate("OpenPoster", u"Value", None));
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("OpenPoster", u"Value", None))
         self.openFile.setText(QCoreApplication.translate("OpenPoster", u"Open File", None))
         self.filename.setText(QCoreApplication.translate("OpenPoster", u"No File Open", None))
     # retranslateUi
