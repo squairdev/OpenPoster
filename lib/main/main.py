@@ -41,6 +41,32 @@ class LKStateSetValue:
         return e
 
 
+class LKStateAddAnimation:
+    def __init__(self, element):
+        self.element = element
+        self.targetId = self.element.get("targetId")
+        self.keyPath = self.element.get("keyPath")
+        
+        self.animations = []
+        self._animations = self.element.findall(
+            "{http://www.apple.com/CoreAnimation/1.0}animation")
+        if self._animations is not None:
+            for animation in self._animations:
+                if animation.get("type") == "CAKeyframeAnimation":
+                    self.animations.append(CAKeyframeAnimation(animation))
+                elif animation.get("type") == "CASpringAnimation":
+                    self.animations.append(CASpringAnimation(animation))
+
+    def create(self):
+        e = ET.Element('LKStateAddAnimation')
+        e.set("targetId", self.targetId)
+        e.set("keyPath", self.keyPath)
+        if self._animations is not None:
+            for animation in self.animations:
+                e.append(animation.create())
+        return e
+
+
 class LKState:
     def __init__(self, element):
         self.element = element
@@ -53,6 +79,8 @@ class LKState:
             for element in self._elements:
                 if element.tag == "{http://www.apple.com/CoreAnimation/1.0}LKStateSetValue":
                     self.elements.append(LKStateSetValue(element))
+                elif element.tag == "{http://www.apple.com/CoreAnimation/1.0}LKStateAddAnimation":
+                    self.elements.append(LKStateAddAnimation(element))
 
     def create(self):
         e = ET.Element('LKState')
@@ -274,6 +302,8 @@ class CAKeyframeAnimation(CAAnimation):
 
         # KEYFRAME
         self.calculationMode = self.element.get("calculationMode")
+        self.additive = self.element.get("additive")
+        self.cumulative = self.element.get("cumulative")
 
         self.keyTimes = []
         self._keyTimes = self.element.find(
@@ -281,6 +311,13 @@ class CAKeyframeAnimation(CAAnimation):
         if self._keyTimes is not None:
             for keyTime in self._keyTimes:
                 self.keyTimes.append(CANumber(keyTime))
+                
+        self.timingFunctions = []
+        self._timingFunctions = self.element.find(
+            "{http://www.apple.com/CoreAnimation/1.0}timingFunctions")
+        if self._timingFunctions is not None:
+            for timingFunction in self._timingFunctions:
+                self.timingFunctions.append(timingFunction)
 
         self.values = []
         self._values = self.element.find(
@@ -291,19 +328,27 @@ class CAKeyframeAnimation(CAAnimation):
 
     def create(self):
         e = super().create()
-        if self.tag == "p":
-            self.setValue(e, "key", self.key)
 
         # KEYFRAME
         self.setValue(e, "calculationMode", self.calculationMode)
+        self.setValue(e, "additive", self.additive)
+        self.setValue(e, "cumulative", self.cumulative)
+        
+        if self.tag == "p":
+            self.setValue(e, "key", self.key)
 
-        if self.keyTimes != []:
-            keyTimes = ET.SubElement(e, 'keyTimes')
+        if self.keyTimes:
+            keyTimes = ET.SubElement(e, "keyTimes")
             for keyTime in self.keyTimes:
                 keyTimes.append(keyTime.create())
+                
+        if self.timingFunctions:
+            timingFunctions = ET.SubElement(e, "timingFunctions")
+            for timingFunction in self.timingFunctions:
+                timingFunctions.append(timingFunction)
 
-        if self.values != []:
-            values = ET.SubElement(e, 'values')
+        if self.values:
+            values = ET.SubElement(e, "values")
             for value in self.values:
                 values.append(value.create())
 
@@ -321,6 +366,22 @@ class CALayer:
         self.transform = self.element.get('transform')
         self.anchorPoint = self.element.get('anchorPoint')
         self.geometryFlipped = self.element.get('geometryFlipped')
+        self.opacity = self.element.get('opacity')
+        self.zPosition = self.element.get('zPosition')
+        self.backgroundColor = self.element.get('backgroundColor')
+        self.cornerRadius = self.element.get('cornerRadius')
+        
+        # Store the layer class type (CALayer, CATextLayer, etc.)
+        self.layer_class = self.element.get('class')
+        
+        # Handle CATextLayer specific properties
+        if self.layer_class == "CATextLayer":
+            self.string = self.element.get('string')
+            self.fontSize = self.element.get('fontSize')
+            self.fontFamily = self.element.get('fontFamily')
+            self.alignmentMode = self.element.get('alignmentMode')
+            self.color = self.element.get('color')
+        
         self._content = self.element.find(
             '{http://www.apple.com/CoreAnimation/1.0}contents')
         if self._content is not None:
@@ -337,7 +398,7 @@ class CALayer:
                 if layer.tag == "{http://www.apple.com/CoreAnimation/1.0}CALayer":
                     self.sublayers[layer.get('id')] = CALayer(layer)
                     self._sublayerorder.append(layer.get('id'))
-                # TODO: support more than just CALayer
+                # TODO: support more specialized layer types in the future
 
         self.states = {}
         self._states = self.element.find(
@@ -399,6 +460,31 @@ class CALayer:
             e.set('anchorPoint', self.anchorPoint)
         if self.geometryFlipped is not None:
             e.set('geometryFlipped', self.geometryFlipped)
+        if self.opacity is not None:
+            e.set('opacity', self.opacity)
+        if self.zPosition is not None:
+            e.set('zPosition', self.zPosition)
+        if self.backgroundColor is not None:
+            e.set('backgroundColor', self.backgroundColor)
+        if self.cornerRadius is not None:
+            e.set('cornerRadius', self.cornerRadius)
+        
+        # Set layer class type if it exists
+        if self.layer_class is not None:
+            e.set('class', self.layer_class)
+            
+        # Handle CATextLayer specific properties
+        if self.layer_class == "CATextLayer":
+            if hasattr(self, 'string') and self.string is not None:
+                e.set('string', self.string)
+            if hasattr(self, 'fontSize') and self.fontSize is not None:
+                e.set('fontSize', self.fontSize)
+            if hasattr(self, 'fontFamily') and self.fontFamily is not None:
+                e.set('fontFamily', self.fontFamily)
+            if hasattr(self, 'alignmentMode') and self.alignmentMode is not None:
+                e.set('alignmentMode', self.alignmentMode)
+            if hasattr(self, 'color') and self.color is not None:
+                e.set('color', self.color)
 
         if self._content is not None:
             content = ET.SubElement(e, 'contents')
