@@ -4,118 +4,12 @@ import math
 from lib.main.main import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation
-from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsScene, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QGraphicsView, QGraphicsItemAnimation, QPushButton, QHBoxLayout
+from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget
 from ui.ui_mainwindow import Ui_OpenPoster
+from gui.custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
-
-
-class CheckerboardGraphicsScene(QGraphicsScene):
-    def __init__(self, parent=None):
-        super(CheckerboardGraphicsScene, self).__init__(parent)
-        self.checkerboardSize = 20
-
-    def drawBackground(self, painter, rect):
-        super(CheckerboardGraphicsScene, self).drawBackground(painter, rect)
-        
-        painter.save()
-        painter.fillRect(rect, QColor(240, 240, 240))
-        
-        left = int(rect.left()) - (int(rect.left()) % self.checkerboardSize)
-        top = int(rect.top()) - (int(rect.top()) % self.checkerboardSize)
-        
-        for x in range(left, int(rect.right()), self.checkerboardSize):
-            for y in range(top, int(rect.bottom()), self.checkerboardSize):
-                if (x // self.checkerboardSize + y // self.checkerboardSize) % 2 == 0:
-                    painter.fillRect(x, y, self.checkerboardSize, self.checkerboardSize, QColor(220, 220, 220))
-        
-        painter.restore()
-
-
-class CustomGraphicsView(QGraphicsView):
-    def __init__(self, parent=None, min_zoom=0.05, max_zoom=10.0):
-        super(CustomGraphicsView, self).__init__(parent)
-        self._pan_start_x = 0
-        self._pan_start_y = 0
-        self._last_mouse_pos = QPointF()
-        self.setMouseTracking(True)
-        self._panning = False
-        self.minZoom = min_zoom
-        self.maxZoom = max_zoom
-        self.contentFittingZoom = min_zoom
-    
-    def wheelEvent(self, event):
-        if not self.scene() or not self.scene().items():
-            event.accept()
-            return
-            
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            angle = event.angleDelta().y()
-            
-            current_scale = self.transform().m11()
-            zoom_factor = 1.1 if angle > 0 else 0.9
-            new_scale = current_scale * zoom_factor
-            new_scale = max(self.minZoom, min(self.maxZoom, new_scale))
-            
-            if current_scale != 0:
-                scale_factor = new_scale / current_scale
-            elif new_scale != 0:
-                scale_factor = float('inf')
-
-            if abs(scale_factor - 1.0) > 1e-9:
-                self.scale(scale_factor, scale_factor)
-
-        else:
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - event.angleDelta().x())
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - event.angleDelta().y())
-            
-        event.accept()
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._panning = True
-            self._last_mouse_pos = event.position()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-        else:
-            super(CustomGraphicsView, self).mousePressEvent(event)
-    
-    def mouseMoveEvent(self, event):
-        if self._panning:
-            delta = event.position() - self._last_mouse_pos
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
-            self._last_mouse_pos = event.position()
-            event.accept()
-        else:
-            super(CustomGraphicsView, self).mouseMoveEvent(event)
-    
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self._panning:
-            self._panning = False
-            self.setCursor(Qt.CursorShape.ArrowCursor)
-            event.accept()
-        else:
-            super(CustomGraphicsView, self).mouseReleaseEvent(event)
-
-    def updateContentFittingZoom(self, sceneRect):
-        if sceneRect.isEmpty():
-            return
-
-        padded_rect = sceneRect.adjusted(-30, -30, 30, 30)
-        
-        view_width = self.viewport().width()
-        view_height = self.viewport().height()
-        
-        if view_width <= 0 or view_height <= 0:
-            return
-            
-        scale_x = view_width / padded_rect.width()
-        scale_y = view_height / padded_rect.height()
-        
-        fitting_scale = min(scale_x, scale_y)
-        
-        self.contentFittingZoom = max(0.01, fitting_scale * 0.9)
+import platform
 
 
 class MainWindow(QMainWindow):
@@ -124,22 +18,231 @@ class MainWindow(QMainWindow):
         self.ui = Ui_OpenPoster()
         self.ui.setupUi(self)
         
-        self.custom_view = CustomGraphicsView(
-            parent=self.ui.previewWidget, 
-            min_zoom=0.05, 
-            max_zoom=10.0
-        )
-        self.custom_view.setObjectName("graphicsView")
+        self.isMacOS = platform.system() == "Darwin"
         
-        self.ui.previewLayout.replaceWidget(self.ui.graphicsView, self.custom_view)
+        if self.isMacOS:
+            self.setupSystemAppearanceDetection()
         
-        self.ui.graphicsView = self.custom_view
+        self.initUI()
+        
+        self.animations_playing = False
+        self.animations = []
+
+    def setupSystemAppearanceDetection(self):
+        """Setup observers to detect macOS dark/light mode changes"""
+        try:
+            from Foundation import NSUserDefaults
+            self.macAppearanceObserver = NSUserDefaults.standardUserDefaults()
+            self.updateAppearanceForMac()
+            
+            self.app = QApplication.instance()
+            self.app.installEventFilter(self)
+        except ImportError:
+            print("Foundation module not available - dark mode detection limited")
+            self.updateAppearanceForMac()
+    
+    def eventFilter(self, obj, event):
+        """Filter application events to detect palette changes"""
+        if event.type() == QEvent.ApplicationPaletteChange:
+            self.updateAppearanceForMac()
+        return super(MainWindow, self).eventFilter(obj, event)
+            
+    def updateAppearanceForMac(self):
+        """Update UI elements based on system dark/light mode"""
+        isDarkMode = False
+        
+        try:
+            from Foundation import NSUserDefaults
+            appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
+            isDarkMode = appleInterfaceStyle == "Dark"
+        except:
+            app = QApplication.instance()
+            if app:
+                windowText = app.palette().color(QPalette.Active, QPalette.WindowText)
+                isDarkMode = windowText.lightness() > 128
+        
+        if isDarkMode:
+            self.applyDarkModeStyles()
+        else:
+            self.applyLightModeStyles()
+    
+    def applyDarkModeStyles(self):
+        """Apply dark mode specific styles"""
+        scene = self.scene if hasattr(self, 'scene') else None
+        if scene and isinstance(scene, CheckerboardGraphicsScene):
+            scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
+            scene.update()
+            
+        if hasattr(self, 'playButton'):
+            self.playButton.setStyleSheet("""
+                QPushButton { 
+                    border: none; 
+                    background-color: transparent;
+                    color: rgba(255, 255, 255, 150);
+                }
+                QPushButton:hover { 
+                    background-color: rgba(128, 128, 128, 50);
+                    border-radius: 20px;
+                }
+            """)
+            
+        if hasattr(self, 'editButton'):
+            self.editButton.setStyleSheet("""
+                QPushButton { 
+                    border: none; 
+                    background-color: transparent;
+                    color: rgba(0, 0, 0, 150);
+                }
+                QPushButton:hover { 
+                    background-color: rgba(128, 128, 128, 30);
+                    border-radius: 20px;
+                }
+                QPushButton:checked {
+                    background-color: rgba(0, 120, 215, 50);
+                    border-radius: 20px;
+                }
+            """)
+            
+        self.ui.tableWidget.setStyleSheet("""
+            QTableWidget {
+                border: none;
+                background-color: transparent;
+                gridline-color: transparent;
+                color: palette(text);
+            }
+            QTableWidget::item { 
+                padding: 8px;
+                min-height: 30px;
+            }
+            QTableWidget::item:first-column {
+                border-right: 1px solid rgba(180, 180, 180, 60);
+            }
+            QTableWidget::item:selected {
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
+            }
+        """)
+        
+        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: palette(button);
+                color: palette(text);
+                padding: 8px;
+                border: none;
+                border-right: 1px solid rgba(180, 180, 180, 60);
+                border-bottom: none;
+            }
+        """)
+    
+    def applyLightModeStyles(self):
+        """Apply light mode specific styles"""
+        scene = self.scene if hasattr(self, 'scene') else None
+        if scene and isinstance(scene, CheckerboardGraphicsScene):
+            scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
+            scene.update()
+            
+        if hasattr(self, 'playButton'):
+            self.playButton.setStyleSheet("""
+                QPushButton { 
+                    border: none; 
+                    background-color: transparent;
+                    color: rgba(0, 0, 0, 150);
+                }
+                QPushButton:hover { 
+                    background-color: rgba(128, 128, 128, 30);
+                    border-radius: 20px;
+                }
+            """)
+            
+        if hasattr(self, 'editButton'):
+            self.editButton.setStyleSheet("""
+                QPushButton { 
+                    border: none; 
+                    background-color: transparent;
+                    color: rgba(0, 0, 0, 150);
+                }
+                QPushButton:hover { 
+                    background-color: rgba(128, 128, 128, 30);
+                    border-radius: 20px;
+                }
+                QPushButton:checked {
+                    background-color: rgba(0, 120, 215, 50);
+                    border-radius: 20px;
+                }
+            """)
+            
+        self.ui.tableWidget.setStyleSheet("""
+            QTableWidget {
+                border: none;
+                background-color: transparent;
+                gridline-color: transparent;
+                color: palette(text);
+            }
+            QTableWidget::item { 
+                padding: 8px;
+                min-height: 30px;
+            }
+            QTableWidget::item:first-column {
+                border-right: 1px solid rgba(120, 120, 120, 60);
+            }
+            QTableWidget::item:selected {
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
+            }
+        """)
+        
+        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: palette(button);
+                color: palette(text);
+                padding: 8px;
+                border: none;
+                border-right: 1px solid rgba(120, 120, 120, 60);
+                border-bottom: none;
+            }
+        """)
+
+    def initUI(self):
+        
+        if not hasattr(self.ui, 'previewLabel'):
+            self.ui.previewLabel = QLabel(self.ui.previewWidget)
+            self.ui.previewLabel.setObjectName("previewLabel")
+            self.ui.previewLabel.setText("Preview")
         
         self.previewHeaderLayout = QHBoxLayout()
-        self.previewHeaderLayout.setObjectName("previewHeaderLayout")
         self.previewHeaderLayout.setContentsMargins(0, 0, 0, 0)
+        self.previewHeaderLayout.setSpacing(10)
         
+        self.ui.previewLabel.setStyleSheet("font-size: 14px; padding: 5px;")
         self.previewHeaderLayout.addWidget(self.ui.previewLabel)
+        
+        self.previewHeaderLayout.addStretch()
+        
+        self.editIcon = QIcon("icons/edit.svg")
+        self.editButton = QPushButton(self.ui.previewWidget)
+        self.editButton.setObjectName("editButton")
+        self.editButton.setIcon(self.editIcon)
+        self.editButton.setToolTip("Toggle Edit Mode")
+        self.editButton.setFixedSize(40, 40)
+        self.editButton.setIconSize(QSize(24, 24))
+        self.editButton.setCheckable(True)
+        self.editButton.setStyleSheet("""
+            QPushButton { 
+                border: none; 
+                background-color: transparent;
+                color: rgba(0, 0, 0, 150);
+            }
+            QPushButton:hover { 
+                background-color: rgba(128, 128, 128, 30);
+                border-radius: 20px;
+            }
+            QPushButton:checked {
+                background-color: rgba(0, 120, 215, 50);
+                border-radius: 20px;
+            }
+        """)
+        self.editButton.clicked.connect(self.toggleEditMode)
+        self.previewHeaderLayout.addWidget(self.editButton)
         
         self.playIcon = QIcon("icons/play.svg")
         self.pauseIcon = QIcon("icons/pause.svg")
@@ -154,22 +257,18 @@ class MainWindow(QMainWindow):
             QPushButton { 
                 border: none; 
                 background-color: transparent;
+                color: rgba(255, 255, 255, 150);
             }
             QPushButton:hover { 
-                background-color: rgba(128, 128, 128, 30);
+                background-color: rgba(128, 128, 128, 50);
                 border-radius: 20px;
             }
         """)
         self.playButton.clicked.connect(self.toggleAnimations)
         self.previewHeaderLayout.addWidget(self.playButton)
         
-        self.previewHeaderLayout.addStretch()
-        
         self.ui.previewLayout.removeWidget(self.ui.previewLabel)
         self.ui.previewLayout.insertLayout(0, self.previewHeaderLayout)
-        
-        self.animations_playing = False
-        self.animations = []
         
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
@@ -180,18 +279,56 @@ class MainWindow(QMainWindow):
         self.showFullPath = True
         
         self.ui.tableWidget.verticalHeader().setVisible(False) 
-        self.ui.tableWidget.setStyleSheet("QTableWidget::item { padding: 4px; }")
+        self.ui.tableWidget.setShowGrid(False) 
+        self.ui.tableWidget.setFrameStyle(0)
+        self.ui.tableWidget.setStyleSheet("""
+            QTableWidget {
+                border: none;
+                background-color: transparent;
+                gridline-color: transparent;
+            }
+            QTableWidget::item { 
+                padding: 8px;
+                min-height: 30px;
+            }
+            QTableWidget::item:first-column {
+                border-right: 1px solid rgba(120, 120, 120, 60);
+            }
+            QTableWidget::item:selected {
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
+            }
+        """)
         header_font = self.ui.tableWidget.horizontalHeader().font()
-        header_font.setPointSize(header_font.pointSize() + 2)
+        header_font.setPointSize(header_font.pointSize() + 1)
         self.ui.tableWidget.horizontalHeader().setFont(header_font)
+        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: palette(button);
+                color: palette(text);
+                padding: 8px;
+                border: none;
+                border-right: 1px solid rgba(120, 120, 120, 60);
+                border-bottom: none;
+            }
+        """)
+        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         
         self.scene = CheckerboardGraphicsScene()
         self.ui.graphicsView.setScene(self.scene)
+        
         self.ui.graphicsView.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.ui.graphicsView.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         self.ui.graphicsView.setTransformationAnchor(self.ui.graphicsView.ViewportAnchor.AnchorUnderMouse)
         self.ui.graphicsView.setResizeAnchor(self.ui.graphicsView.ViewportAnchor.AnchorUnderMouse)
         self.ui.graphicsView.setViewportUpdateMode(self.ui.graphicsView.ViewportUpdateMode.FullViewportUpdate)
+        
+        self.ui.graphicsView.minZoom = 0.05
+        self.ui.graphicsView.maxZoom = 10.0
+        self.ui.graphicsView.contentFittingZoom = 0.05
+        
+        self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
         
         self.currentSelectedItem = None
         self.cachedImages = {}
@@ -982,9 +1119,10 @@ class MainWindow(QMainWindow):
                     item.setSelected(True)
                     self.ui.graphicsView.centerOn(item)
                 
-        for item in self.scene.items():
-            if hasattr(item, "data") and item.data(0) == layer.id + "_name":
-                item.setDefaultTextColor(QColor(0, 120, 215))
+        if layer.id is not None:
+            for item in self.scene.items():
+                if hasattr(item, "data") and item.data(0) == layer.id + "_name":
+                    item.setDefaultTextColor(QColor(0, 120, 215))
     
     def highlightAnimationInPreview(self, layer, animation):
         self.highlightLayerInPreview(layer)
@@ -996,8 +1134,6 @@ class MainWindow(QMainWindow):
         self.ui.statesTreeWidget.clear()
         
         self.processStatesInLayer(self.cafile.rootlayer, None)
-        
-        self.ui.statesTreeWidget.expandAll()
     
     def processStatesInLayer(self, layer, parentItem):
         if not hasattr(layer, "states") or not layer.states:
@@ -1006,107 +1142,57 @@ class MainWindow(QMainWindow):
         layerItem = None
         if len(layer.states) > 0:
             if parentItem is None:
-                layerName = layer.name if hasattr(layer, "name") else "Root Layer"
-                layerItem = QTreeWidgetItem([f"{layerName} States", "LayerFolder", ""])
-                self.ui.statesTreeWidget.addTopLevelItem(layerItem)
+                for state_name, state in layer.states.items():
+                    stateItem = QTreeWidgetItem([state_name, "State", layer.id])
+                    self.ui.statesTreeWidget.addTopLevelItem(stateItem)
+                    
+                    if hasattr(state, "elements") and state.elements:
+                        self.addStateElements(state, stateItem)
             else:
                 layerName = layer.name if hasattr(layer, "name") else "Sublayer"
                 layerItem = QTreeWidgetItem([f"{layerName} States", "LayerFolder", ""])
                 parentItem.addChild(layerItem)
                 
-            for state_name, state in layer.states.items():
-                stateItem = QTreeWidgetItem([state_name, "State", layer.id])
-                layerItem.addChild(stateItem)
-                
-                if hasattr(state, "elements") and state.elements:
-                    for element in state.elements:
-                        if element.__class__.__name__ == "LKStateSetValue":
-                            setValue = QTreeWidgetItem([
-                                f"{element.keyPath}",
-                                "SetValue",
-                                f"{element.value} ({element.valueType})"
-                            ])
-                            setValue.setData(0, QtCore.Qt.UserRole, element.targetId)
-                            stateItem.addChild(setValue)
-                        elif element.__class__.__name__ == "LKStateAddAnimation":
-                            animItem = QTreeWidgetItem([
-                                f"{element.keyPath}",
-                                "AddAnimation",
-                                element.targetId
-                            ])
-                            stateItem.addChild(animItem)
-                            
-                            if hasattr(element, "animations") and element.animations:
-                                for anim in element.animations:
-                                    animType = anim.type if hasattr(anim, "type") else "Unknown"
-                                    animDetails = QTreeWidgetItem([
-                                        f"{animType}",
-                                        "Animation",
-                                        f"duration: {anim.duration if hasattr(anim, 'duration') else 'N/A'}"
-                                    ])
-                                    animItem.addChild(animDetails)
-                
-                if hasattr(layer, "stateTransitions"):
-                    related_transitions = []
-                    for transition in layer.stateTransitions:
-                        fromState = transition.fromState if hasattr(transition, "fromState") else ""
-                        toState = transition.toState if hasattr(transition, "toState") else ""
-                        
-                        if (fromState == state_name or fromState == "*") or (toState == state_name):
-                            related_transitions.append(transition)
+                for state_name, state in layer.states.items():
+                    stateItem = QTreeWidgetItem([state_name, "State", layer.id])
+                    layerItem.addChild(stateItem)
                     
-                    if related_transitions:
-                        transitionsFolder = QTreeWidgetItem([
-                            "State Transitions",
-                            "TransitionsFolder",
-                            ""
+                    if hasattr(state, "elements") and state.elements:
+                        self.addStateElements(state, stateItem)
+                     
+        if hasattr(layer, "layers") and layer.layers:
+            for sublayer in layer.layers:
+                self.processStatesInLayer(sublayer, layerItem)
+                
+    def addStateElements(self, state, stateItem):
+        """Helper function to add elements to a state item"""
+        for element in state.elements:
+            if element.__class__.__name__ == "LKStateSetValue":
+                setValue = QTreeWidgetItem([
+                    f"{element.keyPath}",
+                    "SetValue",
+                    f"{element.value} ({element.valueType})"
+                ])
+                setValue.setData(0, QtCore.Qt.UserRole, element.targetId)
+                stateItem.addChild(setValue)
+            elif element.__class__.__name__ == "LKStateAddAnimation":
+                animItem = QTreeWidgetItem([
+                    f"{element.keyPath}",
+                    "AddAnimation",
+                    element.targetId
+                ])
+                stateItem.addChild(animItem)
+                
+                if hasattr(element, "animations") and element.animations:
+                    for anim in element.animations:
+                        animType = anim.type if hasattr(anim, "type") else "Unknown"
+                        animDetails = QTreeWidgetItem([
+                            f"{animType}",
+                            "Animation",
+                            anim.id if hasattr(anim, "id") else ""
                         ])
-                        stateItem.addChild(transitionsFolder)
-                        
-                        for transition in related_transitions:
-                            fromState = transition.fromState if hasattr(transition, "fromState") else "*"
-                            toState = transition.toState if hasattr(transition, "toState") else "*"
-                            
-                            direction = "to" if toState == state_name else "from"
-                            other_state = fromState if direction == "to" else toState
-                            if other_state == "*":
-                                other_state = "any state"
-                                
-                            transitionItem = QTreeWidgetItem([
-                                f"{direction} {other_state}",
-                                "Transition",
-                                layer.id
-                            ])
-                            transitionItem.setData(0, QtCore.Qt.UserRole, (fromState, toState))
-                            transitionsFolder.addChild(transitionItem)
-                            
-                            if hasattr(transition, "elements") and transition.elements:
-                                for element in transition.elements:
-                                    if hasattr(element, "targetId") and hasattr(element, "key"):
-                                        transElementItem = QTreeWidgetItem([
-                                            f"{element.key}",
-                                            "TransitionElement",
-                                            element.targetId
-                                        ])
-                                        transitionItem.addChild(transElementItem)
-                                        
-                                        if hasattr(element, "animations") and element.animations:
-                                            for anim in element.animations:
-                                                if anim.type == "CASpringAnimation":
-                                                    springDetails = f"d:{anim.damping if hasattr(anim, 'damping') else 'N/A'}, m:{anim.mass if hasattr(anim, 'mass') else 'N/A'}, s:{anim.stiffness if hasattr(anim, 'stiffness') else 'N/A'}"
-                                                    animItem = QTreeWidgetItem([
-                                                        f"{anim.type}",
-                                                        "Animation",
-                                                        springDetails
-                                                    ])
-                                                    transElementItem.addChild(animItem)
-        
-        if hasattr(layer, "sublayers") and layer.sublayers:
-            for layer_id in layer._sublayerorder:
-                sublayer = layer.sublayers.get(layer_id)
-                if sublayer:
-                    self.processStatesInLayer(sublayer, layerItem if layerItem else parentItem)
-    
+                        animItem.addChild(animDetails)
+
     def openStateInInspector(self, current, _):
         if current is None:
             return
@@ -1303,14 +1389,9 @@ class MainWindow(QMainWindow):
     def applyAnimationsToPreview(self, animation_element):
         targetId = animation_element.targetId
         
-        if not hasattr(animation_element, "keyPath"):
+        keyPath = getattr(animation_element, "keyPath", None)
+        if keyPath is None:
             print("Warning: animation_element missing keyPath attribute")
-            return
-            
-        keyPath = animation_element.keyPath
-        
-        if not isinstance(keyPath, str):
-            print(f"Warning: keyPath is not a string: {type(keyPath)}")
             return
             
         for item in self.scene.items():
@@ -1321,8 +1402,8 @@ class MainWindow(QMainWindow):
                             self.applyKeyframeAnimationToItem(item, keyPath, anim)
                 
     def applyKeyframeAnimationToItem(self, item, keyPath, anim):
-        if not isinstance(keyPath, str):
-            print(f"Warning: keyPath is not a string: {type(keyPath)}")
+        if keyPath is None:
+            print("Warning: keyPath is None")
             return
             
         animation = QVariantAnimation()
@@ -1402,8 +1483,8 @@ class MainWindow(QMainWindow):
             self.animations.append((animation, anim))
         
     def applyTransitionAnimationToPreview(self, targetId, keyPath, animation):
-        if not isinstance(keyPath, str):
-            print(f"Warning: keyPath is not a string: {type(keyPath)}")
+        if keyPath is None:
+            print("Warning: keyPath is None")
             return
             
         for item in self.scene.items():
@@ -1569,3 +1650,18 @@ class MainWindow(QMainWindow):
             pass
             
         return QColor(150, 150, 150, 100)
+
+    def toggleEditMode(self):
+        """Toggle edit mode for the preview graphics view"""
+        edit_enabled = self.editButton.isChecked()
+        self.ui.graphicsView.setEditMode(edit_enabled)
+        
+        if edit_enabled:
+            self.ui.graphicsView.setCursor(Qt.ArrowCursor)
+            self.editButton.setToolTip("Disable Edit Mode")
+        else:
+            self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
+            self.editButton.setToolTip("Enable Edit Mode")
+        
+        status_message = "Edit mode enabled - Click and drag to select/move items" if edit_enabled else "Edit mode disabled - Use two fingers to pan"
+        self.statusBar().showMessage(status_message, 3000)  # 3 sec, can change if too long
