@@ -12,24 +12,29 @@ import PySide6.QtCore as QtCore
 import platform
 
 # temporary code split for reading
-from gui.formatter import Format
+from gui._formatter import Format
+from gui._parse import Parse
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
+        # TEMPORARY NAMES
         fm = Format()
         self.formatFloat = fm.formatFloat
         self.formatPoint = fm.formatPoint
 
+        pr = Parse()
+        self.parseTransform = pr.parseTransform
+        self.parseColor = pr.parseColor
+
         self.ui = Ui_OpenPoster()
         self.ui.setupUi(self)
         
-        self.isMacOS = platform.system() == "Darwin"
-        
         self.loadIconResources()
         
+        self.isMacOS = platform.system() == "Darwin"
         if self.isMacOS:
             self.setupSystemAppearanceDetection()
         else:
@@ -48,7 +53,8 @@ class MainWindow(QMainWindow):
         self.pauseIcon = QIcon("icons/pause.svg")
         self.pauseIconWhite = QIcon("icons/pause-white.svg")
         self.isDarkMode = False
-        
+    
+    # themes section
     def detectDarkMode(self):
         try:
             app = QApplication.instance()
@@ -246,6 +252,7 @@ class MainWindow(QMainWindow):
             }
         """)
 
+    # gui loader section
     def initUI(self):
         
         if not hasattr(self.ui, 'previewLabel'):
@@ -374,6 +381,7 @@ class MainWindow(QMainWindow):
         self.cachedImages = {}
         self.currentZoom = 1.0
 
+    # file display section
     def toggleFilenameDisplay(self, event):
         if hasattr(self, 'cafilepath'):
             if self.showFullPath:
@@ -394,7 +402,7 @@ class MainWindow(QMainWindow):
                 
         if self.cafilepath:
             self.ui.filename.setText(self.cafilepath)
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px;")
             self.showFullPath = True
             self.cafile = CAFile(self.cafilepath)
             self.cachedImages = {}
@@ -415,7 +423,7 @@ class MainWindow(QMainWindow):
             self.fitPreviewToView()
         else:
             self.ui.filename.setText("No File Open")
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
@@ -435,6 +443,7 @@ class MainWindow(QMainWindow):
         transform = self.ui.graphicsView.transform()
         self.currentZoom = transform.m11()
 
+    # only called like once
     def treeWidgetChildren(self, item, layer):
         for id in layer._sublayerorder:
             sublayer = layer.sublayers.get(id)
@@ -455,17 +464,7 @@ class MainWindow(QMainWindow):
                     animItem = QTreeWidgetItem([animation.keyPath, "Animation", "", sublayer.id])
                     childItem.addChild(animItem)
 
-    # def formatFloat(self, value, decimal_places=2):
-    #     return Format.formatFloat()
-
-    # def formatPoint(self, point_str, decimal_places=2):
-    #     try:
-    #         parts = point_str.split()
-    #         formatted_parts = [self.formatFloat(part, decimal_places) for part in parts]
-    #         return " ".join(formatted_parts)
-    #     except:
-    #         return point_str
-
+    # inspector section
     def openInInspector(self, current, _):
         if current is None:
             return
@@ -695,6 +694,7 @@ class MainWindow(QMainWindow):
         value_item = QTableWidgetItem(str(value))
         self.ui.tableWidget.setItem(row_index, 1, value_item)
     
+    # preview section
     def renderPreview(self, root_layer, target_state=None):
         """Render the preview of the layer hierarchy with optional target state"""
         self.scene.clear()
@@ -839,33 +839,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error loading image {asset_path}: {e}")
             return None
-        
-    def parseTransform(self, transform_str):
-        transform = QTransform()
-        if not transform_str:
-            return transform
-            
-        try:
-            if "scale" in transform_str:
-                scale_parts = transform_str.split("scale(")[1].split(")")[0].split(",")
-                scale_x = float(scale_parts[0].strip())
-                scale_y = float(scale_parts[1].strip())
-                transform.scale(scale_x, scale_y)
-                
-            if "rotate" in transform_str:
-                rotation_str = transform_str.split("rotate(")[1].split("deg")[0].strip()
-                rotation_angle = float(rotation_str)
-                transform.rotate(rotation_angle)
-                
-            if "translate" in transform_str:
-                translate_parts = transform_str.split("translate(")[1].split(")")[0].split(",")
-                translate_x = float(translate_parts[0].strip())
-                translate_y = float(translate_parts[1].strip())
-                transform.translate(translate_x, translate_y)
-        except:
-            pass
-            
-        return transform
         
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
         if hasattr(layer, "hidden") and layer.hidden:
@@ -1422,7 +1395,8 @@ class MainWindow(QMainWindow):
                 if hasattr(element, "animations"):
                     for anim in element.animations:
                         self.applyTransitionAnimationToPreview(element.targetId, element.key, anim)
-                        
+
+    # applying changes section          
     def applyAnimationsToPreview(self, animation_element):
         targetId = animation_element.targetId
         
@@ -1594,6 +1568,7 @@ class MainWindow(QMainWindow):
             self.animations = []
         self.animations.append((timeline, animation))
 
+    # pause and play section
     def toggleAnimations(self):
         if not hasattr(self, 'animations_playing'):
             self.animations_playing = False
@@ -1628,74 +1603,6 @@ class MainWindow(QMainWindow):
                     anim.pause()
                 elif isinstance(anim, QtCore.QTimeLine):
                     anim.setPaused(True)
-                    
-    def renderPreview(self, root_layer, target_state=None):
-        """Render the preview of the layer hierarchy with optional target state"""
-        self.scene.clear()
-        
-        bounds = QRectF(0, 0, 1000, 1000)
-        if hasattr(root_layer, "bounds") and root_layer.bounds:
-            try:
-                x = float(root_layer.bounds[0])
-                y = float(root_layer.bounds[1])
-                w = float(root_layer.bounds[2])
-                h = float(root_layer.bounds[3])
-                bounds = QRectF(x, y, w, h)
-            except (ValueError, IndexError):
-                pass
-        
-        border_rect = QGraphicsRectItem(bounds)
-        border_rect.setPen(QPen(QColor(0, 0, 0), 2))
-        border_rect.setBrush(QBrush(Qt.transparent))
-        self.scene.addItem(border_rect)
-        
-        base_state = None
-        if hasattr(root_layer, "states") and root_layer.states and "Base State" in root_layer.states:
-            base_state = root_layer.states["Base State"]
-        
-        root_pos = QPointF(0, 0)
-        if hasattr(root_layer, "position") and root_layer.position:
-            try:
-                root_pos = QPointF(float(root_layer.position[0]), float(root_layer.position[1]))
-            except (ValueError, IndexError):
-                pass
-        
-        self.renderLayer(root_layer, root_pos, QTransform(), base_state, target_state)
-        
-        all_items_rect = self.scene.itemsBoundingRect()
-        self.scene.setSceneRect(all_items_rect)
-
-    def parseColor(self, color_str):
-        if not color_str:
-            return None
-            
-        try:
-            if color_str.lower() in ["black", "white", "red", "green", "blue", "yellow"]:
-                return QColor(color_str)
-                
-            if color_str.startswith("rgb("):
-                rgb = color_str.replace("rgb(", "").replace(")", "").split(",")
-                if len(rgb) >= 3:
-                    r = int(rgb[0].strip())
-                    g = int(rgb[1].strip())
-                    b = int(rgb[2].strip())
-                    return QColor(r, g, b)
-                    
-            if color_str.startswith("rgba("):
-                rgba = color_str.replace("rgba(", "").replace(")", "").split(",")
-                if len(rgba) >= 4:
-                    r = int(rgba[0].strip())
-                    g = int(rgba[1].strip())
-                    b = int(rgba[2].strip())
-                    a = int(float(rgba[3].strip()) * 255)
-                    return QColor(r, g, b, a)
-                    
-            if color_str.startswith("#"):
-                return QColor(color_str)
-        except:
-            pass
-            
-        return QColor(150, 150, 150, 100)
 
     def toggleEditMode(self):
         """Toggle edit mode for the preview graphics view"""
@@ -1709,5 +1616,9 @@ class MainWindow(QMainWindow):
             self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
             self.editButton.setToolTip("Enable Edit Mode")
         
-        status_message = "Edit mode enabled - Click and drag to select/move items" if edit_enabled else "Edit mode disabled - Use two fingers to pan"
+        if edit_enabled:
+            status_message = "Edit mode enabled - Click and drag to select/move items"
+        else:
+            status_message = "Edit mode disabled - Use two fingers to pan"
+            
         self.statusBar().showMessage(status_message, 3000)  # 3 sec, can change if too long

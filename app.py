@@ -1,6 +1,6 @@
 from PySide6 import QtWidgets, QtGui
 import sys
-from gui.placeholder import MainWindow
+from gui.mainwindow import MainWindow
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
