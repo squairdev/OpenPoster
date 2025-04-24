@@ -20,14 +20,36 @@ class MainWindow(QMainWindow):
         
         self.isMacOS = platform.system() == "Darwin"
         
+        self.loadIconResources()
+        
         if self.isMacOS:
             self.setupSystemAppearanceDetection()
+        else:
+            self.detectDarkMode()
         
         self.initUI()
         
         self.animations_playing = False
         self.animations = []
 
+    def loadIconResources(self):
+        self.editIcon = QIcon("icons/edit.svg")
+        self.editIconWhite = QIcon("icons/edit-white.svg")
+        self.playIcon = QIcon("icons/play.svg")
+        self.playIconWhite = QIcon("icons/play-white.svg")
+        self.pauseIcon = QIcon("icons/pause.svg")
+        self.pauseIconWhite = QIcon("icons/pause-white.svg")
+        self.isDarkMode = False
+        
+    def detectDarkMode(self):
+        try:
+            app = QApplication.instance()
+            if app:
+                windowText = app.palette().color(QPalette.Active, QPalette.WindowText)
+                self.isDarkMode = windowText.lightness() > 128
+        except:
+            self.isDarkMode = False
+    
     def setupSystemAppearanceDetection(self):
         """Setup observers to detect macOS dark/light mode changes"""
         try:
@@ -39,7 +61,7 @@ class MainWindow(QMainWindow):
             self.app.installEventFilter(self)
         except ImportError:
             print("Foundation module not available - dark mode detection limited")
-            self.updateAppearanceForMac()
+            self.detectDarkMode()
     
     def eventFilter(self, obj, event):
         """Filter application events to detect palette changes"""
@@ -49,22 +71,36 @@ class MainWindow(QMainWindow):
             
     def updateAppearanceForMac(self):
         """Update UI elements based on system dark/light mode"""
-        isDarkMode = False
+        self.isDarkMode = False
         
         try:
             from Foundation import NSUserDefaults
             appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
-            isDarkMode = appleInterfaceStyle == "Dark"
+            self.isDarkMode = appleInterfaceStyle == "Dark"
         except:
             app = QApplication.instance()
             if app:
                 windowText = app.palette().color(QPalette.Active, QPalette.WindowText)
-                isDarkMode = windowText.lightness() > 128
+                self.isDarkMode = windowText.lightness() > 128
         
-        if isDarkMode:
+        if self.isDarkMode:
             self.applyDarkModeStyles()
+            if hasattr(self, 'editButton'):
+                self.editButton.setIcon(self.editIconWhite)
+            if hasattr(self, 'playButton'):
+                if self.animations_playing:
+                    self.playButton.setIcon(self.pauseIconWhite)
+                else:
+                    self.playButton.setIcon(self.playIconWhite)
         else:
             self.applyLightModeStyles()
+            if hasattr(self, 'editButton'):
+                self.editButton.setIcon(self.editIcon)
+            if hasattr(self, 'playButton'):
+                if self.animations_playing:
+                    self.playButton.setIcon(self.pauseIcon)
+                else:
+                    self.playButton.setIcon(self.playIcon)
     
     def applyDarkModeStyles(self):
         """Apply dark mode specific styles"""
@@ -91,10 +127,10 @@ class MainWindow(QMainWindow):
                 QPushButton { 
                     border: none; 
                     background-color: transparent;
-                    color: rgba(0, 0, 0, 150);
+                    color: rgba(255, 255, 255, 150);
                 }
                 QPushButton:hover { 
-                    background-color: rgba(128, 128, 128, 30);
+                    background-color: rgba(128, 128, 128, 50);
                     border-radius: 20px;
                 }
                 QPushButton:checked {
@@ -218,10 +254,9 @@ class MainWindow(QMainWindow):
         
         self.previewHeaderLayout.addStretch()
         
-        self.editIcon = QIcon("icons/edit.svg")
         self.editButton = QPushButton(self.ui.previewWidget)
         self.editButton.setObjectName("editButton")
-        self.editButton.setIcon(self.editIcon)
+        self.editButton.setIcon(self.editIconWhite if self.isDarkMode else self.editIcon)
         self.editButton.setToolTip("Toggle Edit Mode")
         self.editButton.setFixedSize(40, 40)
         self.editButton.setIconSize(QSize(24, 24))
@@ -244,12 +279,9 @@ class MainWindow(QMainWindow):
         self.editButton.clicked.connect(self.toggleEditMode)
         self.previewHeaderLayout.addWidget(self.editButton)
         
-        self.playIcon = QIcon("icons/play.svg")
-        self.pauseIcon = QIcon("icons/pause.svg")
-        
         self.playButton = QPushButton(self.ui.previewWidget)
         self.playButton.setObjectName("playButton")
-        self.playButton.setIcon(self.playIcon)
+        self.playButton.setIcon(self.playIconWhite if self.isDarkMode else self.playIcon)
         self.playButton.setToolTip("Play/Pause Animations")
         self.playButton.setFixedSize(40, 40)
         self.playButton.setIconSize(QSize(32, 32))
@@ -1562,9 +1594,13 @@ class MainWindow(QMainWindow):
             self.animations_playing = False
             
         self.animations_playing = not self.animations_playing
-        
+            
         if self.animations_playing:
-            self.playButton.setIcon(self.pauseIcon)
+            if self.isDarkMode:
+                self.playButton.setIcon(self.pauseIconWhite)
+            else:
+                self.playButton.setIcon(self.pauseIcon)
+                
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     if anim.state() == QVariantAnimation.State.Stopped:
@@ -1577,7 +1613,11 @@ class MainWindow(QMainWindow):
                     else:
                         anim.resume()
         else:
-            self.playButton.setIcon(self.playIcon)
+            if self.isDarkMode:
+                self.playButton.setIcon(self.playIconWhite)
+            else:
+                self.playButton.setIcon(self.playIcon)
+                
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     anim.pause()
