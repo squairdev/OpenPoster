@@ -5,16 +5,24 @@ from lib.main.main import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
 from ui.ui_mainwindow import Ui_OpenPoster
 from gui.custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 
+# temporary code split for reading
+from gui.formatter import Format
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+
+        fm = Format()
+        self.formatFloat = fm.formatFloat
+        self.formatPoint = fm.formatPoint
+
         self.ui = Ui_OpenPoster()
         self.ui.setupUi(self)
         
@@ -49,11 +57,11 @@ class MainWindow(QMainWindow):
                 self.isDarkMode = windowText.lightness() > 128
         except:
             self.isDarkMode = False
-    
+
     def setupSystemAppearanceDetection(self):
         """Setup observers to detect macOS dark/light mode changes"""
         try:
-            from Foundation import NSUserDefaults
+            from Foundation import NSUserDefaults # type: ignore
             self.macAppearanceObserver = NSUserDefaults.standardUserDefaults()
             self.updateAppearanceForMac()
             
@@ -74,7 +82,7 @@ class MainWindow(QMainWindow):
         self.isDarkMode = False
         
         try:
-            from Foundation import NSUserDefaults
+            from Foundation import NSUserDefaults # type: ignore
             appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
             self.isDarkMode = appleInterfaceStyle == "Dark"
         except:
@@ -447,20 +455,16 @@ class MainWindow(QMainWindow):
                     animItem = QTreeWidgetItem([animation.keyPath, "Animation", "", sublayer.id])
                     childItem.addChild(animItem)
 
-    def formatFloat(self, value, decimal_places=2):
-        try:
-            float_val = float(value)
-            return f"{float_val:.{decimal_places}f}"
-        except (ValueError, TypeError):
-            return value
+    # def formatFloat(self, value, decimal_places=2):
+    #     return Format.formatFloat()
 
-    def formatPoint(self, point_str, decimal_places=2):
-        try:
-            parts = point_str.split()
-            formatted_parts = [self.formatFloat(part, decimal_places) for part in parts]
-            return " ".join(formatted_parts)
-        except:
-            return point_str
+    # def formatPoint(self, point_str, decimal_places=2):
+    #     try:
+    #         parts = point_str.split()
+    #         formatted_parts = [self.formatFloat(part, decimal_places) for part in parts]
+    #         return " ".join(formatted_parts)
+    #     except:
+    #         return point_str
 
     def openInInspector(self, current, _):
         if current is None:
@@ -691,7 +695,8 @@ class MainWindow(QMainWindow):
         value_item = QTableWidgetItem(str(value))
         self.ui.tableWidget.setItem(row_index, 1, value_item)
     
-    def renderPreview(self, root_layer):
+    def renderPreview(self, root_layer, target_state=None):
+        """Render the preview of the layer hierarchy with optional target state"""
         self.scene.clear()
         
         bounds = QRectF(0, 0, 1000, 1000)
@@ -721,11 +726,11 @@ class MainWindow(QMainWindow):
             except (ValueError, IndexError):
                 pass
         
-        self.renderLayer(root_layer, root_pos, QTransform(), base_state)
+        self.renderLayer(root_layer, root_pos, QTransform(), base_state, target_state)
         
         all_items_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(all_items_rect)
-    
+
     def findAssetPath(self, src_path):
         if not src_path:
             return None
@@ -1432,7 +1437,7 @@ class MainWindow(QMainWindow):
                     for anim in animation_element.animations:
                         if anim.type == "CAKeyframeAnimation":
                             self.applyKeyframeAnimationToItem(item, keyPath, anim)
-                
+    
     def applyKeyframeAnimationToItem(self, item, keyPath, anim):
         if keyPath is None:
             print("Warning: keyPath is None")
@@ -1625,6 +1630,7 @@ class MainWindow(QMainWindow):
                     anim.setPaused(True)
                     
     def renderPreview(self, root_layer, target_state=None):
+        """Render the preview of the layer hierarchy with optional target state"""
         self.scene.clear()
         
         bounds = QRectF(0, 0, 1000, 1000)
