@@ -5,7 +5,7 @@ class Parse:
         pass
 
     # TRANSFORMS
-    def parseTransform(self, transform_str):
+    def parseTransform(self, transform_str) -> QTransform:
         transform = QTransform()
         if not transform_str:
             return transform
@@ -33,7 +33,7 @@ class Parse:
         return transform
     
     # COLORS
-    def parseColor(self, color_str):
+    def parseColor(self, color_str) -> QColor:
         if not color_str:
             return None
             
