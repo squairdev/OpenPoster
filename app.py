@@ -5,7 +5,8 @@ from gui.mainwindow import MainWindow
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
 
-    app_icon = QtGui.QIcon("assets/openposter.ico")
+    app.setApplicationName("OpenPoster")
+    app_icon = QtGui.QIcon("assets/openposter.png")
     app.setWindowIcon(app_icon)
 
     widget = MainWindow()

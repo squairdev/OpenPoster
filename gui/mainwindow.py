@@ -400,6 +400,7 @@ class MainWindow(QMainWindow):
                 self.ui.filename.setText(os.path.basename(self.cafilepath))
             else:
                 self.ui.filename.setText(self.cafilepath)
+
             self.showFullPath = not self.showFullPath
 
     def openFile(self):
@@ -413,6 +414,8 @@ class MainWindow(QMainWindow):
                 self, "Select Folder", "")
                 
         if self.cafilepath:
+            self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
+
             self.ui.filename.setText(self.cafilepath)
             self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px;")
             self.showFullPath = True
