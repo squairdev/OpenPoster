@@ -20,8 +20,10 @@ from gui._applyanimation import ApplyAnimation
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.scene: CheckerboardGraphicsScene = None
 
         # app resources then load
+        self.bindOperationFunctions()
         self.loadIconResources()
 
         self.ui = Ui_OpenPoster()
@@ -39,7 +41,7 @@ class MainWindow(QMainWindow):
         self.animations = []
 
     # app resources
-    def loadOperationFunctions(self):
+    def bindOperationFunctions(self):
         # TEMPORARY NAMES
         fm = Format()
         self.formatFloat = fm.formatFloat
