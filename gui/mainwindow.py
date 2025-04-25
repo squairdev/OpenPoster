@@ -5,23 +5,31 @@ from lib.main.main import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
 from ui.ui_mainwindow import Ui_OpenPoster
 from gui.custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 
+# temporary code split for reading
+from gui._formatter import Format
+from gui._parse import Parse
+from gui._applyanimation import ApplyAnimation
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.scene: CheckerboardGraphicsScene = None
+
+        # app resources then load
+        self.bindOperationFunctions()
+        self.loadIconResources()
+
         self.ui = Ui_OpenPoster()
         self.ui.setupUi(self)
         
         self.isMacOS = platform.system() == "Darwin"
-        
-        self.loadIconResources()
-        
         if self.isMacOS:
             self.setupSystemAppearanceDetection()
         else:
@@ -32,6 +40,23 @@ class MainWindow(QMainWindow):
         self.animations_playing = False
         self.animations = []
 
+    # app resources
+    def bindOperationFunctions(self):
+        # TEMPORARY NAMES
+        fm = Format()
+        self.formatFloat = fm.formatFloat
+        self.formatPoint = fm.formatPoint
+
+        pr = Parse()
+        self.parseTransform = pr.parseTransform
+        self.parseColor = pr.parseColor
+
+        aa = ApplyAnimation(self.scene)
+        self.applyAnimationsToPreview = aa.applyAnimationsToPreview
+        self.applyKeyframeAnimationToItem = aa.applyKeyframeAnimationToItem
+        self.applyTransitionAnimationToPreview = aa.applyTransitionAnimationToPreview
+        self.applySpringAnimationToItem = aa.applySpringAnimationToItem
+
     def loadIconResources(self):
         self.editIcon = QIcon("icons/edit.svg")
         self.editIconWhite = QIcon("icons/edit-white.svg")
@@ -40,7 +65,8 @@ class MainWindow(QMainWindow):
         self.pauseIcon = QIcon("icons/pause.svg")
         self.pauseIconWhite = QIcon("icons/pause-white.svg")
         self.isDarkMode = False
-        
+    
+    # themes section
     def detectDarkMode(self):
         try:
             app = QApplication.instance()
@@ -49,11 +75,11 @@ class MainWindow(QMainWindow):
                 self.isDarkMode = windowText.lightness() > 128
         except:
             self.isDarkMode = False
-    
+
     def setupSystemAppearanceDetection(self):
         """Setup observers to detect macOS dark/light mode changes"""
         try:
-            from Foundation import NSUserDefaults
+            from Foundation import NSUserDefaults # type: ignore
             self.macAppearanceObserver = NSUserDefaults.standardUserDefaults()
             self.updateAppearanceForMac()
             
@@ -74,7 +100,7 @@ class MainWindow(QMainWindow):
         self.isDarkMode = False
         
         try:
-            from Foundation import NSUserDefaults
+            from Foundation import NSUserDefaults # type: ignore
             appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
             self.isDarkMode = appleInterfaceStyle == "Dark"
         except:
@@ -238,6 +264,7 @@ class MainWindow(QMainWindow):
             }
         """)
 
+    # gui loader section
     def initUI(self):
         
         if not hasattr(self.ui, 'previewLabel'):
@@ -366,12 +393,14 @@ class MainWindow(QMainWindow):
         self.cachedImages = {}
         self.currentZoom = 1.0
 
+    # file display section
     def toggleFilenameDisplay(self, event):
         if hasattr(self, 'cafilepath'):
             if self.showFullPath:
                 self.ui.filename.setText(os.path.basename(self.cafilepath))
             else:
                 self.ui.filename.setText(self.cafilepath)
+
             self.showFullPath = not self.showFullPath
 
     def openFile(self):
@@ -385,8 +414,10 @@ class MainWindow(QMainWindow):
                 self, "Select Folder", "")
                 
         if self.cafilepath:
+            self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
+
             self.ui.filename.setText(self.cafilepath)
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px;")
             self.showFullPath = True
             self.cafile = CAFile(self.cafilepath)
             self.cachedImages = {}
@@ -407,7 +438,7 @@ class MainWindow(QMainWindow):
             self.fitPreviewToView()
         else:
             self.ui.filename.setText("No File Open")
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
+            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
@@ -427,6 +458,7 @@ class MainWindow(QMainWindow):
         transform = self.ui.graphicsView.transform()
         self.currentZoom = transform.m11()
 
+    # only called like once
     def treeWidgetChildren(self, item, layer):
         for id in layer._sublayerorder:
             sublayer = layer.sublayers.get(id)
@@ -447,21 +479,7 @@ class MainWindow(QMainWindow):
                     animItem = QTreeWidgetItem([animation.keyPath, "Animation", "", sublayer.id])
                     childItem.addChild(animItem)
 
-    def formatFloat(self, value, decimal_places=2):
-        try:
-            float_val = float(value)
-            return f"{float_val:.{decimal_places}f}"
-        except (ValueError, TypeError):
-            return value
-
-    def formatPoint(self, point_str, decimal_places=2):
-        try:
-            parts = point_str.split()
-            formatted_parts = [self.formatFloat(part, decimal_places) for part in parts]
-            return " ".join(formatted_parts)
-        except:
-            return point_str
-
+    # inspector section
     def openInInspector(self, current, _):
         if current is None:
             return
@@ -691,7 +709,9 @@ class MainWindow(QMainWindow):
         value_item = QTableWidgetItem(str(value))
         self.ui.tableWidget.setItem(row_index, 1, value_item)
     
-    def renderPreview(self, root_layer):
+    # preview section
+    def renderPreview(self, root_layer, target_state=None):
+        """Render the preview of the layer hierarchy with optional target state"""
         self.scene.clear()
         
         bounds = QRectF(0, 0, 1000, 1000)
@@ -721,11 +741,11 @@ class MainWindow(QMainWindow):
             except (ValueError, IndexError):
                 pass
         
-        self.renderLayer(root_layer, root_pos, QTransform(), base_state)
+        self.renderLayer(root_layer, root_pos, QTransform(), base_state, target_state)
         
         all_items_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(all_items_rect)
-    
+
     def findAssetPath(self, src_path):
         if not src_path:
             return None
@@ -834,33 +854,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error loading image {asset_path}: {e}")
             return None
-        
-    def parseTransform(self, transform_str):
-        transform = QTransform()
-        if not transform_str:
-            return transform
-            
-        try:
-            if "scale" in transform_str:
-                scale_parts = transform_str.split("scale(")[1].split(")")[0].split(",")
-                scale_x = float(scale_parts[0].strip())
-                scale_y = float(scale_parts[1].strip())
-                transform.scale(scale_x, scale_y)
-                
-            if "rotate" in transform_str:
-                rotation_str = transform_str.split("rotate(")[1].split("deg")[0].strip()
-                rotation_angle = float(rotation_str)
-                transform.rotate(rotation_angle)
-                
-            if "translate" in transform_str:
-                translate_parts = transform_str.split("translate(")[1].split(")")[0].split(",")
-                translate_x = float(translate_parts[0].strip())
-                translate_y = float(translate_parts[1].strip())
-                transform.translate(translate_x, translate_y)
-        except:
-            pass
-            
-        return transform
         
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
         if hasattr(layer, "hidden") and layer.hidden:
@@ -1417,178 +1410,8 @@ class MainWindow(QMainWindow):
                 if hasattr(element, "animations"):
                     for anim in element.animations:
                         self.applyTransitionAnimationToPreview(element.targetId, element.key, anim)
-                        
-    def applyAnimationsToPreview(self, animation_element):
-        targetId = animation_element.targetId
-        
-        keyPath = getattr(animation_element, "keyPath", None)
-        if keyPath is None:
-            print("Warning: animation_element missing keyPath attribute")
-            return
-            
-        for item in self.scene.items():
-            if hasattr(item, "data") and item.data(0) == targetId:
-                if hasattr(animation_element, "animations"):
-                    for anim in animation_element.animations:
-                        if anim.type == "CAKeyframeAnimation":
-                            self.applyKeyframeAnimationToItem(item, keyPath, anim)
-                
-    def applyKeyframeAnimationToItem(self, item, keyPath, anim):
-        if keyPath is None:
-            print("Warning: keyPath is None")
-            return
-            
-        animation = QVariantAnimation()
-        
-        try:
-            if hasattr(anim, "duration"):
-                if isinstance(anim.duration, (int, float)):
-                    duration_ms = int(float(anim.duration) * 1000)
-                else:
-                    duration_ms = int(float(anim.duration) * 1000)
-            else:
-                duration_ms = 1000
-                
-            animation.setDuration(duration_ms)
-        except (ValueError, TypeError) as e:
-            print(f"Error setting animation duration: {e}")
-            animation.setDuration(1000)
-            
-        if hasattr(anim, "keyTimes") and anim.keyTimes and hasattr(anim, "values") and anim.values:
-            keyframes = []
-            
-            for i, keyTime in enumerate(anim.keyTimes):
-                if i < len(anim.values):
-                    try:
-                        time_pct = 0
-                        if hasattr(keyTime, 'value') and keyTime.value is not None:
-                            time_pct = float(keyTime.value)
-                        
-                        value_obj = anim.values[i]
-                        anim_value = 0
-                        if hasattr(value_obj, 'value') and value_obj.value is not None:
-                            anim_value = float(value_obj.value)
-                            
-                        keyframes.append((time_pct, anim_value))
-                    except (ValueError, TypeError) as e:
-                        print(f"Error parsing keyframe: {e}")
-                    
-            if "position.x" in keyPath:
-                animation.setStartValue(item.x())
-                for time_pct, value in keyframes:
-                    try:
-                        animation.setKeyValueAt(time_pct, value)
-                    except (ValueError, TypeError) as e:
-                        print(f"Error setting keyframe at {time_pct} with value {value}: {e}")
-                
-                if keyframes:
-                    animation.setEndValue(keyframes[-1][1])
-                
-                def updatePosX(value):
-                    item.setX(value)
-                
-                animation.valueChanged.connect(updatePosX)
-                
-            elif "position.y" in keyPath:
-                animation.setStartValue(item.y())
-                for time_pct, value in keyframes:
-                    try:
-                        animation.setKeyValueAt(time_pct, value)
-                    except (ValueError, TypeError) as e:
-                        print(f"Error setting keyframe at {time_pct} with value {value}: {e}")
-                
-                if keyframes:
-                    animation.setEndValue(keyframes[-1][1])
-                
-                def updatePosY(value):
-                    item.setY(value)
-                
-                animation.valueChanged.connect(updatePosY)
-        
-        if hasattr(self, 'animations_playing') and self.animations_playing:
-            animation.start()
-        
-        if not hasattr(self, 'animations'):
-            self.animations = []
-            
-        if hasattr(animation, 'duration') and animation.duration() > 0:
-            self.animations.append((animation, anim))
-        
-    def applyTransitionAnimationToPreview(self, targetId, keyPath, animation):
-        if keyPath is None:
-            print("Warning: keyPath is None")
-            return
-            
-        for item in self.scene.items():
-            if hasattr(item, "data") and item.data(0) == targetId:
-                if animation.type == "CASpringAnimation":
-                    self.applySpringAnimationToItem(item, keyPath, animation)
-                    
-    def applySpringAnimationToItem(self, item, keyPath, animation):
-        damping = 10.0
-        mass = 1.0
-        stiffness = 100.0
-        velocity = 0.0
-        duration = 0.8
-        
-        if hasattr(animation, "damping"):
-            try:
-                damping = float(animation.damping)
-            except (ValueError, TypeError):
-                pass
-                
-        if hasattr(animation, "mass"):
-            try:
-                mass = float(animation.mass)
-            except (ValueError, TypeError):
-                pass
-                
-        if hasattr(animation, "stiffness"):
-            try:
-                stiffness = float(animation.stiffness)
-            except (ValueError, TypeError):
-                pass
-                
-        if hasattr(animation, "velocity"):
-            try:
-                velocity = float(animation.velocity)
-            except (ValueError, TypeError):
-                pass
-                
-        if hasattr(animation, "duration"):
-            try:
-                duration = float(animation.duration)
-            except (ValueError, TypeError):
-                pass
-                
-        timeline = QtCore.QTimeLine(int(duration * 1000))
-        timeline.setEasingCurve(QtCore.QEasingCurve.OutElastic)
-        timeline.setLoopCount(1)
-        
-        animation_obj = QGraphicsItemAnimation()
-        animation_obj.setItem(item)
-        animation_obj.setTimeLine(timeline)
-        
-        if "position.y" in keyPath:
-            current_y = item.pos().y()
-            target_y = current_y + 50
-            animation_obj.setPosAt(0.0, QPointF(item.pos().x(), current_y))
-            animation_obj.setPosAt(1.0, QPointF(item.pos().x(), target_y))
-        elif "position.x" in keyPath:
-            current_x = item.pos().x()
-            target_x = current_x + 50
-            animation_obj.setPosAt(0.0, QPointF(current_x, item.pos().y()))
-            animation_obj.setPosAt(1.0, QPointF(target_x, item.pos().y()))
-        elif "opacity" in keyPath:
-            pass
-        
-        if hasattr(self, 'animations_playing') and self.animations_playing:
-            timeline.start()
-        
-        if not hasattr(self, 'animations'):
-            self.animations = []
-        self.animations.append((timeline, animation))
 
+    # pause and play section
     def toggleAnimations(self):
         if not hasattr(self, 'animations_playing'):
             self.animations_playing = False
@@ -1623,73 +1446,6 @@ class MainWindow(QMainWindow):
                     anim.pause()
                 elif isinstance(anim, QtCore.QTimeLine):
                     anim.setPaused(True)
-                    
-    def renderPreview(self, root_layer, target_state=None):
-        self.scene.clear()
-        
-        bounds = QRectF(0, 0, 1000, 1000)
-        if hasattr(root_layer, "bounds") and root_layer.bounds:
-            try:
-                x = float(root_layer.bounds[0])
-                y = float(root_layer.bounds[1])
-                w = float(root_layer.bounds[2])
-                h = float(root_layer.bounds[3])
-                bounds = QRectF(x, y, w, h)
-            except (ValueError, IndexError):
-                pass
-        
-        border_rect = QGraphicsRectItem(bounds)
-        border_rect.setPen(QPen(QColor(0, 0, 0), 2))
-        border_rect.setBrush(QBrush(Qt.transparent))
-        self.scene.addItem(border_rect)
-        
-        base_state = None
-        if hasattr(root_layer, "states") and root_layer.states and "Base State" in root_layer.states:
-            base_state = root_layer.states["Base State"]
-        
-        root_pos = QPointF(0, 0)
-        if hasattr(root_layer, "position") and root_layer.position:
-            try:
-                root_pos = QPointF(float(root_layer.position[0]), float(root_layer.position[1]))
-            except (ValueError, IndexError):
-                pass
-        
-        self.renderLayer(root_layer, root_pos, QTransform(), base_state, target_state)
-        
-        all_items_rect = self.scene.itemsBoundingRect()
-        self.scene.setSceneRect(all_items_rect)
-
-    def parseColor(self, color_str):
-        if not color_str:
-            return None
-            
-        try:
-            if color_str.lower() in ["black", "white", "red", "green", "blue", "yellow"]:
-                return QColor(color_str)
-                
-            if color_str.startswith("rgb("):
-                rgb = color_str.replace("rgb(", "").replace(")", "").split(",")
-                if len(rgb) >= 3:
-                    r = int(rgb[0].strip())
-                    g = int(rgb[1].strip())
-                    b = int(rgb[2].strip())
-                    return QColor(r, g, b)
-                    
-            if color_str.startswith("rgba("):
-                rgba = color_str.replace("rgba(", "").replace(")", "").split(",")
-                if len(rgba) >= 4:
-                    r = int(rgba[0].strip())
-                    g = int(rgba[1].strip())
-                    b = int(rgba[2].strip())
-                    a = int(float(rgba[3].strip()) * 255)
-                    return QColor(r, g, b, a)
-                    
-            if color_str.startswith("#"):
-                return QColor(color_str)
-        except:
-            pass
-            
-        return QColor(150, 150, 150, 100)
 
     def toggleEditMode(self):
         """Toggle edit mode for the preview graphics view"""
@@ -1703,5 +1459,9 @@ class MainWindow(QMainWindow):
             self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
             self.editButton.setToolTip("Enable Edit Mode")
         
-        status_message = "Edit mode enabled - Click and drag to select/move items" if edit_enabled else "Edit mode disabled - Use two fingers to pan"
+        if edit_enabled:
+            status_message = "Edit mode enabled - Click and drag to select/move items"
+        else:
+            status_message = "Edit mode disabled - Use two fingers to pan"
+            
         self.statusBar().showMessage(status_message, 3000)  # 3 sec, can change if too long
