@@ -7,17 +7,19 @@ from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
 from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
 from ui.ui_mainwindow import Ui_OpenPoster
-from gui.custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
+from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 import webbrowser
 
 # temporary code split for reading
-from gui._formatter import Format
-from gui._parse import Parse
-from gui._applyanimation import ApplyAnimation
-from gui.config_manager import ConfigManager
-from gui.settings_dialog import SettingsDialog
+from ._formatter import Format
+from ._parse import Parse
+from ._applyanimation import ApplyAnimation
+from ._assets import Assets
+
+from .config_manager import ConfigManager
+from .settings_dialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -54,20 +56,24 @@ class MainWindow(QMainWindow):
 
     # app resources
     def bindOperationFunctions(self):
-        # TEMPORARY NAMES
-        fm = Format()
-        self.formatFloat = fm.formatFloat
-        self.formatPoint = fm.formatPoint
+        # TEMPORARY NAMES **not so temp now
+        self._format = Format()
+        self.formatFloat = self._format.formatFloat
+        self.formatPoint = self._format.formatPoint
 
-        pr = Parse()
-        self.parseTransform = pr.parseTransform
-        self.parseColor = pr.parseColor
+        self._parse = Parse()
+        self.parseTransform = self._parse.parseTransform
+        self.parseColor = self._parse.parseColor
 
-        aa = ApplyAnimation(self.scene)
-        self.applyAnimationsToPreview = aa.applyAnimationsToPreview
-        self.applyKeyframeAnimationToItem = aa.applyKeyframeAnimationToItem
-        self.applyTransitionAnimationToPreview = aa.applyTransitionAnimationToPreview
-        self.applySpringAnimationToItem = aa.applySpringAnimationToItem
+        self._applyAnimation = ApplyAnimation(self.scene)
+        self.applyAnimationsToPreview = self._applyAnimation.applyAnimationsToPreview
+        self.applyKeyframeAnimationToItem = self._applyAnimation.applyKeyframeAnimationToItem
+        self.applyTransitionAnimationToPreview = self._applyAnimation.applyTransitionAnimationToPreview
+        self.applySpringAnimationToItem = self._applyAnimation.applySpringAnimationToItem
+
+        self._Assets = Assets()
+        self.findAssetPath = self._Assets.findAssetPath
+        self.loadImage = self._Assets.loadImage
 
     def loadIconResources(self):
         self.editIcon = QIcon("icons/edit.svg")
@@ -1091,115 +1097,6 @@ class MainWindow(QMainWindow):
         
         all_items_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(all_items_rect)
-
-    def findAssetPath(self, src_path):
-        if not src_path:
-            return None
-        
-        try:
-            import urllib.parse
-            decoded_path = urllib.parse.unquote(src_path)
-            if decoded_path != src_path:
-                src_path = decoded_path
-        except:
-            pass
-        
-        if os.path.isabs(src_path) and os.path.exists(src_path):
-            return src_path
-        
-        base_path = os.path.join(self.cafilepath, src_path)
-        if os.path.exists(base_path):
-            return base_path
-        
-        assets_path = os.path.join(self.cafilepath, "assets", os.path.basename(src_path))
-        if os.path.exists(assets_path):
-            return assets_path
-        
-        direct_path = os.path.join(self.cafilepath, os.path.basename(src_path))
-        if os.path.exists(direct_path):
-            return direct_path
-        
-        parent_path = os.path.join(os.path.dirname(self.cafilepath), os.path.basename(src_path))
-        if os.path.exists(parent_path):
-            return parent_path
-        
-        parent_assets_path = os.path.join(os.path.dirname(self.cafilepath), "assets", os.path.basename(src_path))
-        if os.path.exists(parent_assets_path):
-            return parent_assets_path
-        
-        filename = os.path.basename(src_path)
-        assets_dir = os.path.join(self.cafilepath, "assets")
-        if os.path.exists(assets_dir) and os.path.isdir(assets_dir):
-            for file in os.listdir(assets_dir):
-                if file.lower() == filename.lower():
-                    return os.path.join(assets_dir, file)
-                
-        parent_assets_dir = os.path.join(os.path.dirname(self.cafilepath), "assets")
-        if os.path.exists(parent_assets_dir) and os.path.isdir(parent_assets_dir):
-            for file in os.listdir(parent_assets_dir):
-                if file.lower() == filename.lower():
-                    return os.path.join(parent_assets_dir, file)
-                
-        if os.path.isdir(self.cafilepath):
-            for file in os.listdir(self.cafilepath):
-                if os.path.isfile(os.path.join(self.cafilepath, file)) and file.lower() == filename.lower():
-                    return os.path.join(self.cafilepath, file)
-                
-        parent_dir = os.path.dirname(self.cafilepath)
-        if os.path.exists(parent_dir) and os.path.isdir(parent_dir):
-            for file in os.listdir(parent_dir):
-                if os.path.isfile(os.path.join(parent_dir, file)) and file.lower() == filename.lower():
-                    return os.path.join(parent_dir, file)
-        
-        return self.findAssetRecursive(self.cafilepath, filename, max_depth=3)
-    
-    def findAssetRecursive(self, directory, filename, max_depth=3, current_depth=0):
-        if current_depth > max_depth or not os.path.exists(directory) or not os.path.isdir(directory):
-            return None
-        
-        for file in os.listdir(directory):
-            full_path = os.path.join(directory, file)
-            
-            if os.path.isfile(full_path) and file.lower() == filename.lower():
-                return full_path
-            
-            if os.path.isdir(full_path):
-                result = self.findAssetRecursive(full_path, filename, max_depth, current_depth + 1)
-                if result:
-                    return result
-                
-        return None
-    
-    def loadImage(self, src_path):
-        if not src_path:
-            return None
-        
-        if src_path in self.cachedImages:
-            return self.cachedImages[src_path]
-        
-        asset_path = self.findAssetPath(src_path)
-        if not asset_path or not os.path.exists(asset_path):
-            print(f"Could not find asset: {src_path}")
-            
-            if not hasattr(self, 'missing_assets'):
-                self.missing_assets = set()
-            self.missing_assets.add(src_path)
-            
-            return None
-        
-        try:
-            img = QImage(asset_path)
-            if img.isNull():
-                print(f"Failed to load image: {asset_path}")
-                return None
-            
-            pixmap = QPixmap.fromImage(img)
-            self.cachedImages[src_path] = pixmap
-            print(f"Loaded image successfully: {asset_path}")
-            return pixmap
-        except Exception as e:
-            print(f"Error loading image {asset_path}: {e}")
-            return None
         
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
         if hasattr(layer, "hidden") and layer.hidden:
@@ -1378,7 +1275,11 @@ class MainWindow(QMainWindow):
         elif hasattr(layer, "_content") and layer._content is not None:
             if hasattr(layer, "content") and hasattr(layer.content, "src"):
                 src_path = layer.content.src
+                # umm...
+                self._Assets.cafilepath = self.cafilepath
+                self._Assets.cachedImages = self.cachedImages
                 pixmap = self.loadImage(src_path)
+                self.cachedImages = self._Assets.cachedImages
                 
                 if not pixmap and hasattr(self, 'missing_assets') and src_path in self.missing_assets:
                     missing_asset = True
@@ -1925,6 +1826,7 @@ class MainWindow(QMainWindow):
             alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
             alt_settings_shortcut.activated.connect(self.showSettingsDialog)
     
+    # settings section
     def showSettingsDialog(self):
         dialog = SettingsDialog(self, self.config_manager)
         dialog.exec()
