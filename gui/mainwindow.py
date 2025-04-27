@@ -3,24 +3,30 @@ import os
 import math
 from lib.main.main import CAFile
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation
-from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette
+from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
+from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
 from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
 from ui.ui_mainwindow import Ui_OpenPoster
 from gui.custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
+import webbrowser
 
 # temporary code split for reading
 from gui._formatter import Format
 from gui._parse import Parse
 from gui._applyanimation import ApplyAnimation
+from gui.config_manager import ConfigManager
+from gui.settings_dialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.scene: CheckerboardGraphicsScene = None
+
+        # config manager
+        self.config_manager = ConfigManager()
 
         # app resources then load
         self.bindOperationFunctions()
@@ -37,8 +43,14 @@ class MainWindow(QMainWindow):
         
         self.initUI()
         
+        # Restore window geometry
+        self.loadWindowGeometry()
+        
         self.animations_playing = False
         self.animations = []
+        
+        # set up keyboard shortcuts
+        self.setupShortcuts()
 
     # app resources
     def bindOperationFunctions(self):
@@ -64,10 +76,16 @@ class MainWindow(QMainWindow):
         self.playIconWhite = QIcon("icons/play-white.svg")
         self.pauseIcon = QIcon("icons/pause.svg")
         self.pauseIconWhite = QIcon("icons/pause-white.svg")
+        self.settingsIcon = QIcon("icons/settings.svg")
+        self.settingsIconWhite = QIcon("icons/settings-white.svg")
+        self.discordIcon = QIcon("icons/discord.svg")
+        self.discordIconWhite = QIcon("icons/discord-white.svg")
         self.isDarkMode = False
     
     # themes section
     def detectDarkMode(self):
+        previous_dark_mode = self.isDarkMode if hasattr(self, 'isDarkMode') else False
+        
         try:
             app = QApplication.instance()
             if app:
@@ -76,8 +94,27 @@ class MainWindow(QMainWindow):
         except:
             self.isDarkMode = False
 
+        if hasattr(self, 'ui') and previous_dark_mode != self.isDarkMode:
+            self.updateCategoryHeaders()
+            
+    def updateCategoryHeaders(self):
+        if not hasattr(self, 'ui') or not hasattr(self.ui, 'tableWidget'):
+            return
+            
+        if self.isDarkMode:
+            bg_color = QColor(60, 60, 60)
+            text_color = QColor(230, 230, 230)
+        else:
+            bg_color = QColor(220, 220, 220)
+            text_color = QColor(30, 30, 30)
+            
+        for row in range(self.ui.tableWidget.rowCount()):
+            item = self.ui.tableWidget.item(row, 0)
+            if item and self.ui.tableWidget.columnSpan(row, 0) > 1:
+                item.setBackground(bg_color)
+                item.setForeground(text_color)
+
     def setupSystemAppearanceDetection(self):
-        """Setup observers to detect macOS dark/light mode changes"""
         try:
             from Foundation import NSUserDefaults # type: ignore
             self.macAppearanceObserver = NSUserDefaults.standardUserDefaults()
@@ -90,13 +127,12 @@ class MainWindow(QMainWindow):
             self.detectDarkMode()
     
     def eventFilter(self, obj, event):
-        """Filter application events to detect palette changes"""
         if event.type() == QEvent.ApplicationPaletteChange:
             self.updateAppearanceForMac()
         return super(MainWindow, self).eventFilter(obj, event)
             
     def updateAppearanceForMac(self):
-        """Update UI elements based on system dark/light mode"""
+        previous_dark_mode = self.isDarkMode
         self.isDarkMode = False
         
         try:
@@ -118,6 +154,10 @@ class MainWindow(QMainWindow):
                     self.playButton.setIcon(self.pauseIconWhite)
                 else:
                     self.playButton.setIcon(self.playIconWhite)
+            if hasattr(self, 'settingsButton'):
+                self.settingsButton.setIcon(self.settingsIconWhite)
+            if hasattr(self, 'discordButton'):
+                self.discordButton.setIcon(self.discordIconWhite)
         else:
             self.applyLightModeStyles()
             if hasattr(self, 'editButton'):
@@ -127,9 +167,15 @@ class MainWindow(QMainWindow):
                     self.playButton.setIcon(self.pauseIcon)
                 else:
                     self.playButton.setIcon(self.playIcon)
+            if hasattr(self, 'settingsButton'):
+                self.settingsButton.setIcon(self.settingsIcon)
+            if hasattr(self, 'discordButton'):
+                self.discordButton.setIcon(self.discordIcon)
+        
+        if previous_dark_mode != self.isDarkMode:
+            self.updateCategoryHeaders()
     
     def applyDarkModeStyles(self):
-        """Apply dark mode specific styles"""
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
             scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
@@ -197,7 +243,6 @@ class MainWindow(QMainWindow):
         """)
     
     def applyLightModeStyles(self):
-        """Apply light mode specific styles"""
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
             scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
@@ -329,6 +374,45 @@ class MainWindow(QMainWindow):
         self.ui.previewLayout.removeWidget(self.ui.previewLabel)
         self.ui.previewLayout.insertLayout(0, self.previewHeaderLayout)
         
+        self.settingsButton = QPushButton(self.ui.headerWidget)
+        self.settingsButton.setObjectName("settingsButton")
+        self.settingsButton.setIcon(self.settingsIconWhite if self.isDarkMode else self.settingsIcon)
+        self.settingsButton.setToolTip("Settings")
+        self.settingsButton.setFixedSize(40, 40)
+        self.settingsButton.setIconSize(QSize(24, 24))
+        self.settingsButton.setStyleSheet("""
+            QPushButton { 
+                border: none; 
+                background-color: transparent;
+            }
+            QPushButton:hover { 
+                background-color: rgba(128, 128, 128, 30);
+                border-radius: 20px;
+            }
+        """)
+        self.settingsButton.clicked.connect(self.showSettingsDialog)
+        
+        self.discordButton = QPushButton(self.ui.headerWidget)
+        self.discordButton.setObjectName("discordButton")
+        self.discordButton.setIcon(self.discordIconWhite if self.isDarkMode else self.discordIcon)
+        self.discordButton.setToolTip("Open Discord")
+        self.discordButton.setFixedSize(40, 40)
+        self.discordButton.setIconSize(QSize(24, 24))
+        self.discordButton.setStyleSheet("""
+            QPushButton { 
+                border: none; 
+                background-color: transparent;
+            }
+            QPushButton:hover { 
+                background-color: rgba(128, 128, 128, 30);
+                border-radius: 20px;
+            }
+        """)
+        self.discordButton.clicked.connect(self.openDiscord)
+        
+        self.ui.horizontalLayout_header.addWidget(self.discordButton)
+        self.ui.horizontalLayout_header.addWidget(self.settingsButton)
+        
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
@@ -388,6 +472,11 @@ class MainWindow(QMainWindow):
         self.ui.graphicsView.contentFittingZoom = 0.05
         
         self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
+        
+        self.ui.mainSplitter.splitterMoved.connect(lambda: self.saveSplitterSizes())
+        self.ui.layersSplitter.splitterMoved.connect(lambda: self.saveSplitterSizes())
+        
+        self.loadSplitterSizes()
         
         self.currentSelectedItem = None
         self.cachedImages = {}
@@ -488,104 +577,129 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
         
-        self.ui.tableWidget.insertRow(row_index)
-        self.ui.tableWidget.setItem(row_index, 0, QTableWidgetItem("name"))
-        self.ui.tableWidget.item(row_index, 0).setFlags(QtCore.Qt.ItemIsEnabled)
-        self.ui.tableWidget.setItem(row_index, 1, QTableWidgetItem(current.text(0)))
-        row_index += 1
-        
         element_type = current.text(1)
         if element_type == "Animation":
             parent = self.cafile.rootlayer.findlayer(current.text(3))
             element = parent.findanimation(current.text(0))
             if element:
-                self.add_inspector_row("type", element.type, row_index)
+                row_index = self.add_category_header("Basic Info", row_index)
+                
+                self.add_inspector_row("NAME", current.text(0), row_index)
                 row_index += 1
                 
-                self.add_inspector_row("keyPath", element.keyPath, row_index)
+                self.add_inspector_row("TYPE", element.type, row_index)
                 row_index += 1
+                
+                self.add_inspector_row("KEYPATH", element.keyPath, row_index)
+                row_index += 1
+                
+                timing_properties = False
+                if (hasattr(element, "duration") and element.duration) or \
+                   (hasattr(element, "beginTime") and element.beginTime) or \
+                   (hasattr(element, "fillMode") and element.fillMode) or \
+                   (hasattr(element, "removedOnCompletion") and element.removedOnCompletion) or \
+                   (hasattr(element, "repeatCount") and element.repeatCount) or \
+                   (hasattr(element, "calculationMode") and element.calculationMode):
+                    row_index = self.add_category_header("Timing", row_index)
+                    timing_properties = True
                 
                 if hasattr(element, "duration") and element.duration:
-                    self.add_inspector_row("duration", self.formatFloat(element.duration), row_index)
+                    self.add_inspector_row("DURATION", self.formatFloat(element.duration), row_index)
                     row_index += 1
                 
                 if hasattr(element, "beginTime") and element.beginTime:
-                    self.add_inspector_row("beginTime", self.formatFloat(element.beginTime), row_index)
+                    self.add_inspector_row("BEGIN TIME", self.formatFloat(element.beginTime), row_index)
                     row_index += 1
                 
                 if hasattr(element, "fillMode") and element.fillMode:
-                    self.add_inspector_row("fillMode", element.fillMode, row_index)
+                    self.add_inspector_row("FILL MODE", element.fillMode, row_index)
                     row_index += 1
                 
-                if hasattr(element, "removedOnCompletion") and element.removedOnCompletion:
-                    self.add_inspector_row("removedOnCompletion", element.removedOnCompletion, row_index)
+                if hasattr(element, "removedOnCompletion") and element.removedOnCompletion: # Due tomorrow, do tomorrow' Use a bool
+                    self.add_inspector_row("REMOVED ON COMPLETION", element.removedOnCompletion, row_index)
                     row_index += 1
                 
                 if hasattr(element, "repeatCount") and element.repeatCount:
-                    self.add_inspector_row("repeatCount", self.formatFloat(element.repeatCount), row_index)
+                    self.add_inspector_row("REPEAT COUNT", self.formatFloat(element.repeatCount), row_index)
                     row_index += 1
                 
                 if hasattr(element, "calculationMode") and element.calculationMode:
-                    self.add_inspector_row("calculationMode", element.calculationMode, row_index)
+                    self.add_inspector_row("CALCULATION MODE", element.calculationMode, row_index)
                     row_index += 1
                 
                 if element.type == "CASpringAnimation":
+                    row_index = self.add_category_header("Spring Properties", row_index)
+                    
                     if hasattr(element, "damping") and element.damping:
-                        self.add_inspector_row("damping", self.formatFloat(element.damping), row_index)
+                        self.add_inspector_row("DAMPING", self.formatFloat(element.damping), row_index)
                         row_index += 1
                     
                     if hasattr(element, "mass") and element.mass:
-                        self.add_inspector_row("mass", self.formatFloat(element.mass), row_index)
+                        self.add_inspector_row("MASS", self.formatFloat(element.mass), row_index)
                         row_index += 1
                     
                     if hasattr(element, "stiffness") and element.stiffness:
-                        self.add_inspector_row("stiffness", self.formatFloat(element.stiffness), row_index)
+                        self.add_inspector_row("STIFFNESS", self.formatFloat(element.stiffness), row_index)
                         row_index += 1
                     
                     if hasattr(element, "velocity") and element.velocity:
-                        self.add_inspector_row("velocity", self.formatFloat(element.velocity), row_index)
+                        self.add_inspector_row("VELOCITY", self.formatFloat(element.velocity), row_index)
                         row_index += 1
                     
                     if hasattr(element, "mica_autorecalculatesDuration"):
-                        self.add_inspector_row("mica_autorecalculatesDuration", 
+                        self.add_inspector_row("AUTO RECALCULATES DURATION", 
                                              element.mica_autorecalculatesDuration, row_index)
                         row_index += 1
                 
                 if element.type == "CAKeyframeAnimation":
+                    row_index = self.add_category_header("Keyframe Data", row_index)
+                    
                     if hasattr(element, "values") and element.values:
                         values_str = ", ".join([self.formatFloat(value.value) for value in element.values])
-                        self.add_inspector_row("values", values_str, row_index)
+                        self.add_inspector_row("VALUES", values_str, row_index)
                         row_index += 1
                     
                     if hasattr(element, "keyTimes") and element.keyTimes:
                         times_str = ", ".join([self.formatFloat(time.value) for time in element.keyTimes])
-                        self.add_inspector_row("keyTimes", times_str, row_index)
+                        self.add_inspector_row("KEY TIMES", times_str, row_index)
+                        row_index += 1
+                    
+                    if hasattr(element, "timingFunctions") and element.timingFunctions:
+                        self.add_inspector_row("TIMING FUNCTIONS", str(len(element.timingFunctions)), row_index)
+                        row_index += 1
+                    
+                    if hasattr(element, "path") and element.path:
+                        self.add_inspector_row("PATH", "Path Animation", row_index)
                         row_index += 1
                 
                 if element.type == "CAMatchMoveAnimation":
+                    row_index = self.add_category_header("Match Move Properties", row_index)
+                    
                     if hasattr(element, "additive") and element.additive:
-                        self.add_inspector_row("additive", element.additive, row_index)
+                        self.add_inspector_row("ADDITIVE", element.additive, row_index)
                         row_index += 1
                     
                     if hasattr(element, "appliesX") and element.appliesX:
-                        self.add_inspector_row("appliesX", element.appliesX, row_index)
+                        self.add_inspector_row("APPLIES X", element.appliesX, row_index)
                         row_index += 1
                     
                     if hasattr(element, "appliesY") and element.appliesY:
-                        self.add_inspector_row("appliesY", element.appliesY, row_index)
+                        self.add_inspector_row("APPLIES Y", element.appliesY, row_index)
                         row_index += 1
                     
                     if hasattr(element, "appliesScale") and element.appliesScale:
-                        self.add_inspector_row("appliesScale", element.appliesScale, row_index)
+                        self.add_inspector_row("APPLIES SCALE", element.appliesScale, row_index)
                         row_index += 1
                     
                     if hasattr(element, "appliesRotation") and element.appliesRotation:
-                        self.add_inspector_row("appliesRotation", element.appliesRotation, row_index)
+                        self.add_inspector_row("APPLIES ROTATION", element.appliesRotation, row_index)
                         row_index += 1
                 
                 if element.type == "LKAnimationGroup":
+                    row_index = self.add_category_header("Animation Group", row_index)
+                    
                     if hasattr(element, "animations") and element.animations:
-                        self.add_inspector_row("subAnimations", str(len(element.animations)), row_index)
+                        self.add_inspector_row("SUB ANIMATIONS", str(len(element.animations)), row_index)
                         row_index += 1
                 
                 self.highlightAnimationInPreview(parent, element)
@@ -597,116 +711,348 @@ class MainWindow(QMainWindow):
                 element = self.cafile.rootlayer
                 
             if element:
-                self.add_inspector_row("id", element.id, row_index)
+                row_index = self.add_category_header("Basic Info", row_index)
+                
+                self.add_inspector_row("NAME", current.text(0), row_index)
+                row_index += 1
+                
+                self.add_inspector_row("ID", element.id, row_index)
                 row_index += 1
                 
                 layer_type = "CALayer"
                 if hasattr(element, "layer_class") and element.layer_class:
                     layer_type = element.layer_class
-                self.add_inspector_row("class", layer_type, row_index)
+                self.add_inspector_row("CLASS", layer_type, row_index)
                 row_index += 1
+                
+                geometry_properties = False
+                if (hasattr(element, "position") and element.position) or \
+                   (hasattr(element, "bounds") and element.bounds) or \
+                   (hasattr(element, "frame") and element.frame) or \
+                   (hasattr(element, "transform") and element.transform) or \
+                   (hasattr(element, "anchorPoint") and element.anchorPoint) or \
+                   (hasattr(element, "zPosition") and element.zPosition) or \
+                   (hasattr(element, "geometryFlipped")):
+                    row_index = self.add_category_header("Geometry", row_index)
+                    geometry_properties = True
                 
                 if hasattr(element, "position") and element.position:
                     pos_str = self.formatPoint(" ".join(element.position))
-                    self.add_inspector_row("position", pos_str, row_index)
+                    self.add_inspector_row("POSITION", pos_str, row_index)
                     row_index += 1
                 
                 if hasattr(element, "bounds") and element.bounds:
                     bounds_str = self.formatPoint(" ".join(element.bounds))
-                    self.add_inspector_row("bounds", bounds_str, row_index)
+                    self.add_inspector_row("BOUNDS", bounds_str, row_index)
                     row_index += 1
                 
                 if hasattr(element, "frame") and element.frame:
                     frame_str = self.formatPoint(" ".join(element.frame))
-                    self.add_inspector_row("frame", frame_str, row_index)
+                    self.add_inspector_row("FRAME", frame_str, row_index)
                     row_index += 1
                 
                 if hasattr(element, "transform") and element.transform:
                     transform_str = self.formatPoint(element.transform)
-                    self.add_inspector_row("transform", transform_str, row_index)
+                    self.add_inspector_row("TRANSFORM", transform_str, row_index)
                     row_index += 1
                 
                 if hasattr(element, "anchorPoint") and element.anchorPoint:
                     anchor_str = self.formatPoint(element.anchorPoint)
-                    self.add_inspector_row("anchorPoint", anchor_str, row_index)
+                    self.add_inspector_row("ANCHOR POINT", anchor_str, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "anchorPointZ") and element.anchorPointZ:
+                    self.add_inspector_row("ANCHOR POINT Z", self.formatFloat(element.anchorPointZ), row_index)
                     row_index += 1
                 
                 if hasattr(element, "zPosition") and element.zPosition:
-                    self.add_inspector_row("zPosition", self.formatFloat(element.zPosition), row_index)
-                    row_index += 1
-                
-                if hasattr(element, "backgroundColor") and element.backgroundColor:
-                    self.add_inspector_row("backgroundColor", element.backgroundColor, row_index)
-                    row_index += 1
-                
-                if hasattr(element, "cornerRadius") and element.cornerRadius:
-                    self.add_inspector_row("cornerRadius", self.formatFloat(element.cornerRadius), row_index)
-                    row_index += 1
-                
-                if hasattr(element, "opacity") and element.opacity is not None:
-                    self.add_inspector_row("opacity", self.formatFloat(element.opacity), row_index)
-                    row_index += 1
-                
-                if hasattr(element, "mica_animatedAlpha") and element.mica_animatedAlpha is not None:
-                    self.add_inspector_row("mica_animatedAlpha", self.formatFloat(element.mica_animatedAlpha), row_index)
+                    self.add_inspector_row("Z POSITION", self.formatFloat(element.zPosition), row_index)
                     row_index += 1
                 
                 if hasattr(element, "geometryFlipped"):
-                    self.add_inspector_row("geometryFlipped", str(element.geometryFlipped), row_index)
+                    flipped_value = "Yes" if element.geometryFlipped else "No"
+                    self.add_inspector_row("FLIPPED", flipped_value, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "doubleSided"):
+                    self.add_inspector_row("DOUBLE SIDED", element.doubleSided, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "sublayerTransform") and element.sublayerTransform:
+                    self.add_inspector_row("SUBLAYER TRANSFORM", element.sublayerTransform, row_index)
+                    row_index += 1
+                
+                appearance_properties = False
+                if (hasattr(element, "backgroundColor") and element.backgroundColor) or \
+                   (hasattr(element, "cornerRadius") and element.cornerRadius) or \
+                   (hasattr(element, "borderWidth") and element.borderWidth) or \
+                   (hasattr(element, "borderColor") and element.borderColor) or \
+                   (hasattr(element, "opacity") and element.opacity is not None) or \
+                   (hasattr(element, "mica_animatedAlpha") and element.mica_animatedAlpha is not None) or \
+                   (hasattr(element, "hidden")) or \
+                   (hasattr(element, "opaque")) or \
+                   (hasattr(element, "masksToBounds")) or \
+                   (hasattr(element, "shadowPath")) or \
+                   (hasattr(element, "shadowColor")) or \
+                   (hasattr(element, "shadowOpacity")) or \
+                   (hasattr(element, "shadowOffset")) or \
+                   (hasattr(element, "shadowRadius")):
+                    row_index = self.add_category_header("Appearance", row_index)
+                    appearance_properties = True
+                
+                if hasattr(element, "backgroundColor") and element.backgroundColor:
+                    self.add_inspector_row("BACKGROUND COLOR", element.backgroundColor, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "borderWidth") and element.borderWidth:
+                    self.add_inspector_row("BORDER WIDTH", self.formatFloat(element.borderWidth), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "borderColor") and element.borderColor:
+                    self.add_inspector_row("BORDER COLOR", element.borderColor, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "cornerRadius") and element.cornerRadius:
+                    self.add_inspector_row("CORNER RADIUS", self.formatFloat(element.cornerRadius), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "opacity") and element.opacity is not None:
+                    self.add_inspector_row("OPACITY", self.formatFloat(element.opacity), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "mica_animatedAlpha") and element.mica_animatedAlpha is not None:
+                    self.add_inspector_row("ANIMATED ALPHA", self.formatFloat(element.mica_animatedAlpha), row_index)
                     row_index += 1
                 
                 if hasattr(element, "hidden"):
-                    self.add_inspector_row("hidden", str(element.hidden), row_index)
+                    hidden_value = "Yes" if element.hidden else "No"
+                    self.add_inspector_row("HIDDEN", hidden_value, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "opaque"):
+                    opaque_value = "Yes" if element.opaque else "No"
+                    self.add_inspector_row("OPAQUE", opaque_value, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "masksToBounds"):
+                    masks_value = "Yes" if element.masksToBounds else "No"
+                    self.add_inspector_row("MASKS TO BOUNDS", masks_value, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowPath"):
+                    self.add_inspector_row("SHADOW PATH", element.shadowPath, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowPathIsBounds"):
+                    shadow_path_is_bounds = "Yes" if element.shadowPathIsBounds else "No"
+                    self.add_inspector_row("SHADOW PATH IS BOUNDS", shadow_path_is_bounds, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowColor") and element.shadowColor:
+                    self.add_inspector_row("SHADOW COLOR", element.shadowColor, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowOpacity") and element.shadowOpacity:
+                    self.add_inspector_row("SHADOW OPACITY", self.formatFloat(element.shadowOpacity), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowOffset") and element.shadowOffset:
+                    offset_str = self.formatPoint(element.shadowOffset)
+                    self.add_inspector_row("SHADOW OFFSET", offset_str, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "shadowRadius") and element.shadowRadius:
+                    self.add_inspector_row("SHADOW RADIUS", self.formatFloat(element.shadowRadius), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "invertsShadow"):
+                    inverts_shadow = "Yes" if element.invertsShadow else "No"
+                    self.add_inspector_row("INVERTS SHADOW", inverts_shadow, row_index)
+                    row_index += 1
+                
+                contents_properties = False
+                if (hasattr(element, "contents") and element.contents) or \
+                   (hasattr(element, "contentsRect") and element.contentsRect) or \
+                   (hasattr(element, "contentsCenter") and element.contentsCenter) or \
+                   (hasattr(element, "contentsGravity") and element.contentsGravity) or \
+                   (hasattr(element, "contentsScale") and element.contentsScale) or \
+                   (hasattr(element, "minificationFilter") and element.minificationFilter) or \
+                   (hasattr(element, "magnificationFilter") and element.magnificationFilter):
+                    row_index = self.add_category_header("Contents", row_index)
+                    contents_properties = True
+                
+                if hasattr(element, "contents") and element.contents:
+                    self.add_inspector_row("CONTENTS", "Has Contents", row_index)
+                    row_index += 1
+                
+                if hasattr(element, "contentsRect") and element.contentsRect:
+                    rect_str = self.formatPoint(element.contentsRect)
+                    self.add_inspector_row("CONTENTS RECT", rect_str, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "contentsCenter") and element.contentsCenter:
+                    center_str = self.formatPoint(element.contentsCenter)
+                    self.add_inspector_row("CONTENTS CENTER", center_str, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "contentsGravity") and element.contentsGravity:
+                    self.add_inspector_row("CONTENTS GRAVITY", element.contentsGravity, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "contentsScale") and element.contentsScale:
+                    self.add_inspector_row("CONTENTS SCALE", self.formatFloat(element.contentsScale), row_index)
+                    row_index += 1
+                
+                if hasattr(element, "minificationFilter") and element.minificationFilter:
+                    self.add_inspector_row("MINIFICATION FILTER", element.minificationFilter, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "magnificationFilter") and element.magnificationFilter:
+                    self.add_inspector_row("MAGNIFICATION FILTER", element.magnificationFilter, row_index)
                     row_index += 1
                 
                 if hasattr(element, "layer_class") and element.layer_class == "CATextLayer":
+                    row_index = self.add_category_header("Text", row_index)
+                    
                     if hasattr(element, "string") and element.string:
-                        self.add_inspector_row("string", element.string, row_index)
+                        self.add_inspector_row("STRING", element.string, row_index)
                         row_index += 1
                     
                     if hasattr(element, "fontSize") and element.fontSize:
-                        self.add_inspector_row("fontSize", self.formatFloat(element.fontSize), row_index)
+                        self.add_inspector_row("FONT SIZE", self.formatFloat(element.fontSize), row_index)
                         row_index += 1
                     
                     if hasattr(element, "fontFamily") and element.fontFamily:
-                        self.add_inspector_row("fontFamily", element.fontFamily, row_index)
+                        self.add_inspector_row("FONT FAMILY", element.fontFamily, row_index)
                         row_index += 1
                     
                     if hasattr(element, "alignmentMode") and element.alignmentMode:
-                        self.add_inspector_row("alignmentMode", element.alignmentMode, row_index)
+                        self.add_inspector_row("ALIGNMENT MODE", element.alignmentMode, row_index)
                         row_index += 1
                     
                     if hasattr(element, "color") and element.color:
-                        self.add_inspector_row("color", element.color, row_index)
+                        self.add_inspector_row("COLOR", element.color, row_index)
                         row_index += 1
+                    
+                    if hasattr(element, "wrapped"):
+                        wrapped_value = "Yes" if element.wrapped else "No"
+                        self.add_inspector_row("WRAPPED", wrapped_value, row_index)
+                        row_index += 1
+                    
+                    if hasattr(element, "tracking") and element.tracking:
+                        self.add_inspector_row("TRACKING", self.formatFloat(element.tracking), row_index)
+                        row_index += 1
+                
+                relationships_properties = False
+                if (hasattr(element, "states") and element.states) or \
+                   (hasattr(element, "animations") and element.animations) or \
+                   (hasattr(element, "_sublayerorder") and element._sublayerorder) or \
+                   (hasattr(element, "_content") and element._content is not None):
+                    row_index = self.add_category_header("Content & Relationships", row_index)
+                    relationships_properties = True
                 
                 if hasattr(element, "states") and element.states:
                     states_str = ", ".join(element.states.keys())
-                    self.add_inspector_row("states", states_str, row_index)
+                    self.add_inspector_row("STATES", states_str, row_index)
+                    row_index += 1
+                
+                if hasattr(element, "stateTransitions") and element.stateTransitions:
+                    self.add_inspector_row("STATE TRANSITIONS", str(len(element.stateTransitions)), row_index)
                     row_index += 1
                 
                 if hasattr(element, "animations") and element.animations:
-                    self.add_inspector_row("animationCount", str(len(element.animations)), row_index)
+                    self.add_inspector_row("ANIMATION COUNT", str(len(element.animations)), row_index)
                     row_index += 1
                 
                 if hasattr(element, "_sublayerorder") and element._sublayerorder:
-                    self.add_inspector_row("sublayerCount", str(len(element._sublayerorder)), row_index)
+                    self.add_inspector_row("SUBLAYER COUNT", str(len(element._sublayerorder)), row_index)
                     row_index += 1
                 
                 if hasattr(element, "_content") and element._content is not None:
                     if hasattr(element, "content") and isinstance(element.content, object):
                         if hasattr(element.content, "src"):
-                            self.add_inspector_row("contentSrc", element.content.src, row_index)
+                            self.add_inspector_row("CONTENT SRC", element.content.src, row_index)
                             row_index += 1
                 
                 self.highlightLayerInPreview(element)
         
+    def add_category_header(self, category_name, row_index):
+        self.ui.tableWidget.insertRow(row_index)
+        
+        header_item = QTableWidgetItem(category_name)
+        header_item.setFlags(QtCore.Qt.ItemIsEnabled)
+        
+        if self.isDarkMode:
+            bg_color = QColor(60, 60, 60)
+            text_color = QColor(230, 230, 230) 
+        else:
+            bg_color = QColor(220, 220, 220) 
+            text_color = QColor(30, 30, 30) 
+        
+        header_item.setBackground(bg_color)
+        font = QFont()
+        font.setBold(True)
+        header_item.setFont(font)
+        header_item.setForeground(text_color)
+        
+        self.ui.tableWidget.setItem(row_index, 0, header_item)
+        self.ui.tableWidget.setSpan(row_index, 0, 1, 2)
+        
+        return row_index + 1
+        
     def add_inspector_row(self, key, value, row_index):
         self.ui.tableWidget.insertRow(row_index)
+        
         key_item = QTableWidgetItem(key)
         key_item.setFlags(QtCore.Qt.ItemIsEnabled)
         self.ui.tableWidget.setItem(row_index, 0, key_item)
-        value_item = QTableWidgetItem(str(value))
+        
+        value_str = str(value)
+        
+        if isinstance(value, bool) or (isinstance(value_str, str) and value_str.lower() in ["yes", "no", "true", "false"]):
+            if isinstance(value, bool):
+                display_value = "Yes" if value else "No"
+            else:
+                display_value = value_str.capitalize()
+            value_item = QTableWidgetItem(display_value)
+            
+        elif isinstance(value, (int, float)) or value_str.replace(".", "", 1).replace("-", "", 1).isdigit():
+            value_item = QTableWidgetItem(self.formatFloat(value) if isinstance(value, (float)) else str(value))
+            
+        elif value_str.startswith("#") and (len(value_str) == 7 or len(value_str) == 9):
+            try:
+                color = QColor(value_str)
+                if color.isValid():
+                    pixmap = QPixmap(16, 16)
+                    pixmap.fill(color)
+                    value_item = QTableWidgetItem()
+                    value_item.setData(Qt.DecorationRole, pixmap)
+                    value_item.setText(value_str)
+                else:
+                    value_item = QTableWidgetItem(value_str)
+            except:
+                value_item = QTableWidgetItem(value_str)
+                
+        elif isinstance(value_str, str) and " " in value_str and all(p.replace(".", "", 1).replace("-", "", 1).isdigit() for p in value_str.split()):
+            try:
+                parts = value_str.split()
+                if len(parts) == 2:
+                    value_item = QTableWidgetItem(f"X: {self.formatFloat(float(parts[0]))}, Y: {self.formatFloat(float(parts[1]))}")
+                elif len(parts) == 4:
+                    value_item = QTableWidgetItem(f"X: {self.formatFloat(float(parts[0]))}, Y: {self.formatFloat(float(parts[1]))}, " +
+                                                 f"W: {self.formatFloat(float(parts[2]))}, H: {self.formatFloat(float(parts[3]))}")
+                elif len(parts) == 6:
+                    value_item = QTableWidgetItem(f"[{self.formatFloat(float(parts[0]))} {self.formatFloat(float(parts[1]))} " +
+                                                 f"{self.formatFloat(float(parts[2]))} {self.formatFloat(float(parts[3]))} " +
+                                                 f"{self.formatFloat(float(parts[4]))} {self.formatFloat(float(parts[5]))}]")
+                else:
+                    value_item = QTableWidgetItem(self.formatPoint(value_str))
+            except:
+                value_item = QTableWidgetItem(value_str)
+                
+        else:
+            value_item = QTableWidgetItem(value_str)
+            
         self.ui.tableWidget.setItem(row_index, 1, value_item)
     
     # preview section
@@ -1226,23 +1572,21 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
         
-        self.ui.tableWidget.insertRow(row_index)
-        self.ui.tableWidget.setItem(row_index, 0, QTableWidgetItem("name"))
-        self.ui.tableWidget.item(row_index, 0).setFlags(QtCore.Qt.ItemIsEnabled)
-        self.ui.tableWidget.setItem(row_index, 1, QTableWidgetItem(current.text(0)))
+        element_type = current.text(1)
+        
+        # Basic info category
+        row_index = self.add_category_header("Basic Info", row_index)
+        
+        self.add_inspector_row("NAME", current.text(0), row_index)
         row_index += 1
         
-        element_type = current.text(1)
-        self.ui.tableWidget.insertRow(row_index)
-        self.ui.tableWidget.setItem(row_index, 0, QTableWidgetItem("type"))
-        self.ui.tableWidget.item(row_index, 0).setFlags(QtCore.Qt.ItemIsEnabled)
-        self.ui.tableWidget.setItem(row_index, 1, QTableWidgetItem(element_type))
+        self.add_inspector_row("TYPE", element_type, row_index)
         row_index += 1
         
         if element_type == "State":
             layer_id = current.text(2)
             if layer_id:
-                self.add_inspector_row("layerId", layer_id, row_index)
+                self.add_inspector_row("LAYER ID", layer_id, row_index)
                 row_index += 1
             
             current.setData(0, QtCore.Qt.UserRole, layer_id)
@@ -1258,9 +1602,41 @@ class MainWindow(QMainWindow):
             if layer and hasattr(layer, "states") and state_name in layer.states:
                 state = layer.states[state_name]
                 
+                # State timing info
+                if hasattr(state, "nextDelay") or hasattr(state, "previousDelay") or hasattr(state, "basedOn"):
+                    row_index = self.add_category_header("State Properties", row_index)
+                    
+                    if hasattr(state, "basedOn") and state.basedOn:
+                        self.add_inspector_row("BASED ON", state.basedOn, row_index)
+                        row_index += 1
+                    
+                    if hasattr(state, "nextDelay") and state.nextDelay:
+                        self.add_inspector_row("NEXT DELAY", self.formatFloat(state.nextDelay), row_index)
+                        row_index += 1
+                    
+                    if hasattr(state, "previousDelay") and state.previousDelay:
+                        self.add_inspector_row("PREVIOUS DELAY", self.formatFloat(state.previousDelay), row_index)
+                        row_index += 1
+                
+                # State elements info
                 if hasattr(state, "elements"):
-                    self.add_inspector_row("elementCount", str(len(state.elements)), row_index)
+                    row_index = self.add_category_header("Elements", row_index)
+                    self.add_inspector_row("ELEMENT COUNT", str(len(state.elements)), row_index)
                     row_index += 1
+                    
+                    # Count element types
+                    element_counts = {}
+                    for element in state.elements:
+                        element_type = element.__class__.__name__
+                        element_counts[element_type] = element_counts.get(element_type, 0) + 1
+                    
+                    for element_type, count in element_counts.items():
+                        if element_type == "LKStateSetValue":
+                            self.add_inspector_row("SET VALUE ELEMENTS", str(count), row_index)
+                            row_index += 1
+                        elif element_type == "LKStateAddAnimation":
+                            self.add_inspector_row("ADD ANIMATION ELEMENTS", str(count), row_index)
+                            row_index += 1
                 
                 self.animations = []
                 
@@ -1297,14 +1673,36 @@ class MainWindow(QMainWindow):
                         fromState = other_state
                         toState = state_name
                 
-                self.add_inspector_row("fromState", fromState, row_index)
+                # Transition details
+                row_index = self.add_category_header("Transition Details", row_index)
+                
+                self.add_inspector_row("FROM STATE", fromState, row_index)
                 row_index += 1
-                self.add_inspector_row("toState", toState, row_index)
+                self.add_inspector_row("TO STATE", toState, row_index)
                 row_index += 1
                 
                 if layer_id:
-                    self.add_inspector_row("layerId", layer_id, row_index)
+                    self.add_inspector_row("LAYER ID", layer_id, row_index)
                     row_index += 1
+                
+                # Check if there's actual transition data
+                if layer_id:
+                    layer = self.cafile.rootlayer.findlayer(layer_id)
+                else:
+                    layer = self.cafile.rootlayer
+                
+                if layer and hasattr(layer, "stateTransitions"):
+                    transition = None
+                    for t in layer.stateTransitions:
+                        if (t.fromState == fromState or t.fromState == "*") and t.toState == toState:
+                            transition = t
+                            break
+                    
+                    if transition:
+                        # Show more transition details if available
+                        if hasattr(transition, "elements") and transition.elements:
+                            self.add_inspector_row("ELEMENT COUNT", str(len(transition.elements)), row_index)
+                            row_index += 1
                 
                 self.animations = []
                 
@@ -1316,51 +1714,105 @@ class MainWindow(QMainWindow):
                     self.toggleAnimations()
                 
         elif element_type == "SetValue":
+            # Target information
+            row_index = self.add_category_header("Target Info", row_index)
+            
             targetId = current.data(0, QtCore.Qt.UserRole)
             if targetId:
-                self.add_inspector_row("targetId", targetId, row_index)
+                self.add_inspector_row("TARGET ID", targetId, row_index)
                 row_index += 1
+                
+                # Try to find the target layer to show its name
+                target_layer = self.cafile.rootlayer.findlayer(targetId)
+                if target_layer and hasattr(target_layer, "name"):
+                    self.add_inspector_row("TARGET NAME", target_layer.name, row_index)
+                    row_index += 1
+            
+            # Value information
+            row_index = self.add_category_header("Value", row_index)
                 
             keyPath = current.text(0)
             if keyPath:
-                self.add_inspector_row("keyPath", keyPath, row_index)
+                self.add_inspector_row("KEY PATH", keyPath, row_index)
                 row_index += 1
                 
             value = current.text(2)
             if value:
-                self.add_inspector_row("value", value, row_index)
+                self.add_inspector_row("VALUE", value, row_index)
                 row_index += 1
                 
         elif element_type == "Animation" or element_type == "AddAnimation":
             if element_type == "AddAnimation":
+                # Target information
+                row_index = self.add_category_header("Target Info", row_index)
+                
                 targetId = current.text(2)
                 if targetId:
-                    self.add_inspector_row("targetId", targetId, row_index)
+                    self.add_inspector_row("TARGET ID", targetId, row_index)
                     row_index += 1
+                    
+                    # Try to find the target layer to show its name
+                    target_layer = self.cafile.rootlayer.findlayer(targetId)
+                    if target_layer and hasattr(target_layer, "name"):
+                        self.add_inspector_row("TARGET NAME", target_layer.name, row_index)
+                        row_index += 1
                     
                 keyPath = current.text(0)
                 if keyPath:
-                    self.add_inspector_row("keyPath", keyPath, row_index)
+                    self.add_inspector_row("KEY PATH", keyPath, row_index)
                     row_index += 1
+                
+                # Find the animations
+                parent = current.parent()
+                if parent and parent.text(1) == "State":
+                    state_name = parent.text(0)
+                    layer_id = parent.text(2)
+                    
+                    if layer_id:
+                        layer = self.cafile.rootlayer.findlayer(layer_id)
+                    else:
+                        layer = self.cafile.rootlayer
+                        
+                    if layer and hasattr(layer, "states") and state_name in layer.states:
+                        state = layer.states[state_name]
+                        if hasattr(state, "elements"):
+                            for element in state.elements:
+                                if element.__class__.__name__ == "LKStateAddAnimation" and element.targetId == targetId and element.keyPath == keyPath:
+                                    if hasattr(element, "animations") and element.animations:
+                                        row_index = self.add_category_header("Animations", row_index)
+                                        self.add_inspector_row("ANIMATION COUNT", str(len(element.animations)), row_index)
+                                        row_index += 1
             else:
+                # Animation details
+                row_index = self.add_category_header("Animation Details", row_index)
+                
                 details = current.text(2)
                 if details:
                     for detail in details.split(", "):
                         if ":" in detail:
                             key, value = detail.split(":", 1)
-                            self.add_inspector_row(key.strip(), value.strip(), row_index)
+                            self.add_inspector_row(key.strip().upper(), value.strip(), row_index)
                             row_index += 1
         
         elif element_type == "TransitionElement":
+            # Element details
+            row_index = self.add_category_header("Element Details", row_index)
+            
             key = current.text(0)
             if key:
-                self.add_inspector_row("key", key, row_index)
+                self.add_inspector_row("KEY", key, row_index)
                 row_index += 1
                 
             targetId = current.text(2)
             if targetId:
-                self.add_inspector_row("targetId", targetId, row_index)
+                self.add_inspector_row("TARGET ID", targetId, row_index)
                 row_index += 1
+                
+                # Try to find the target layer to show its name
+                target_layer = self.cafile.rootlayer.findlayer(targetId)
+                if target_layer and hasattr(target_layer, "name"):
+                    self.add_inspector_row("TARGET NAME", target_layer.name, row_index)
+                    row_index += 1
     
     def previewState(self, layer, state_name):
         if not layer or not state_name:
@@ -1371,7 +1823,7 @@ class MainWindow(QMainWindow):
         base_state = None
         if hasattr(layer, "states") and "Base State" in layer.states:
             base_state = layer.states["Base State"]
-            
+        
         target_state = None
         if hasattr(layer, "states") and state_name in layer.states:
             target_state = layer.states[state_name]
@@ -1448,7 +1900,6 @@ class MainWindow(QMainWindow):
                     anim.setPaused(True)
 
     def toggleEditMode(self):
-        """Toggle edit mode for the preview graphics view"""
         edit_enabled = self.editButton.isChecked()
         self.ui.graphicsView.setEditMode(edit_enabled)
         
@@ -1464,4 +1915,75 @@ class MainWindow(QMainWindow):
         else:
             status_message = "Edit mode disabled - Use two fingers to pan"
             
-        self.statusBar().showMessage(status_message, 3000)  # 3 sec, can change if too long
+        self.statusBar().showMessage(status_message, 3000)
+
+    def setupShortcuts(self):
+        settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
+        settings_shortcut.activated.connect(self.showSettingsDialog)
+        
+        if self.isMacOS:
+            alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
+            alt_settings_shortcut.activated.connect(self.showSettingsDialog)
+    
+    def showSettingsDialog(self):
+        dialog = SettingsDialog(self, self.config_manager)
+        dialog.exec()
+    
+    def apply_default_sizes(self):
+        if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
+            total_width = self.ui.mainSplitter.width()
+            section_width = total_width // 3
+            self.ui.mainSplitter.setSizes([section_width, section_width, section_width])
+            
+        if hasattr(self, 'ui') and hasattr(self.ui, 'layersSplitter'):
+            total_height = self.ui.layersSplitter.height()
+            section_height = total_height // 2
+            self.ui.layersSplitter.setSizes([section_height, section_height])
+    
+    def saveSplitterSizes(self):
+        if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
+            sizes = self.ui.mainSplitter.sizes()
+            self.config_manager.save_splitter_sizes("mainSplitter", sizes)
+            
+        if hasattr(self, 'ui') and hasattr(self.ui, 'layersSplitter'):
+            sizes = self.ui.layersSplitter.sizes()
+            self.config_manager.save_splitter_sizes("layersSplitter", sizes)
+    
+    def loadSplitterSizes(self):
+        if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
+            sizes = self.config_manager.get_splitter_sizes("mainSplitter")
+            if sizes:
+                self.ui.mainSplitter.setSizes(sizes)
+                
+        if hasattr(self, 'ui') and hasattr(self.ui, 'layersSplitter'):
+            sizes = self.config_manager.get_splitter_sizes("layersSplitter")
+            if sizes:
+                self.ui.layersSplitter.setSizes(sizes)
+
+    def loadWindowGeometry(self):
+        geometry = self.config_manager.get_window_geometry()
+        
+        if geometry["remember_size"]:
+            self.resize(geometry["size"][0], geometry["size"][1])
+            self.move(geometry["position"][0], geometry["position"][1])
+            
+            if geometry["maximized"]:
+                self.showMaximized()
+                
+    def saveWindowGeometry(self):
+        if self.isMaximized():
+            size = [self.normalGeometry().width(), self.normalGeometry().height()]
+            position = [self.normalGeometry().x(), self.normalGeometry().y()]
+            self.config_manager.save_window_geometry(size, position, True)
+        else:
+            size = [self.width(), self.height()]
+            position = [self.x(), self.y()]
+            self.config_manager.save_window_geometry(size, position, False)
+
+    def closeEvent(self, event):
+        self.saveSplitterSizes()
+        self.saveWindowGeometry() 
+        super().closeEvent(event)
+
+    def openDiscord(self):
+        webbrowser.open("https://discord.gg/t3abQJjHm6")
