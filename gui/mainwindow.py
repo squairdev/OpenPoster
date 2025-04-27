@@ -615,7 +615,7 @@ class MainWindow(QMainWindow):
                     self.add_inspector_row("FILL MODE", element.fillMode, row_index)
                     row_index += 1
                 
-                if hasattr(element, "removedOnCompletion") and element.removedOnCompletion:
+                if hasattr(element, "removedOnCompletion") and element.removedOnCompletion: # Due tomorrow, do tomorrow' Use a bool
                     self.add_inspector_row("REMOVED ON COMPLETION", element.removedOnCompletion, row_index)
                     row_index += 1
                 
