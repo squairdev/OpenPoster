@@ -12,6 +12,8 @@ import PySide6.QtCore as QtCore
 import platform
 import webbrowser
 
+import resources_rc
+
 # temporary code split for reading
 from ._formatter import Format
 from ._parse import Parse
@@ -20,7 +22,6 @@ from ._assets import Assets
 
 from .config_manager import ConfigManager
 from .settings_dialog import SettingsDialog
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -76,16 +77,16 @@ class MainWindow(QMainWindow):
         self.loadImage = self._Assets.loadImage
 
     def loadIconResources(self):
-        self.editIcon = QIcon("icons/edit.svg")
-        self.editIconWhite = QIcon("icons/edit-white.svg")
-        self.playIcon = QIcon("icons/play.svg")
-        self.playIconWhite = QIcon("icons/play-white.svg")
-        self.pauseIcon = QIcon("icons/pause.svg")
-        self.pauseIconWhite = QIcon("icons/pause-white.svg")
-        self.settingsIcon = QIcon("icons/settings.svg")
-        self.settingsIconWhite = QIcon("icons/settings-white.svg")
-        self.discordIcon = QIcon("icons/discord.svg")
-        self.discordIconWhite = QIcon("icons/discord-white.svg")
+        self.editIcon = QIcon(":/icons/edit.svg")
+        self.editIconWhite = QIcon(":/icons/edit-white.svg")
+        self.playIcon = QIcon(":/icons/play.svg")
+        self.playIconWhite = QIcon(":/icons/play-white.svg")
+        self.pauseIcon = QIcon(":/icons/pause.svg")
+        self.pauseIconWhite = QIcon(":/icons/pause-white.svg")
+        self.settingsIcon = QIcon(":/icons/settings.svg")
+        self.settingsIconWhite = QIcon(":/icons/settings-white.svg")
+        self.discordIcon = QIcon(":/icons/discord.svg")
+        self.discordIconWhite = QIcon(":/icons/discord-white.svg")
         self.isDarkMode = False
     
     # themes section
