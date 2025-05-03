@@ -438,7 +438,6 @@ class MainWindow(QMainWindow):
             """
         )
         self.saveButton.clicked.connect(self.saveFile)
-        self.saveButton.setEnabled(False)
         
         self.ui.horizontalLayout_header.addWidget(self.discordButton)
         self.ui.horizontalLayout_header.insertWidget(1, self.saveButton)
@@ -560,13 +559,19 @@ class MainWindow(QMainWindow):
             
             self.populateStatesTreeWidget()
             
+            # Clear previous animations and reset buffer
+            if hasattr(self._applyAnimation, 'animations'):
+                self._applyAnimation.animations.clear()
+            self.animations = []
+            # Render preview and capture default layer animations
             self.scene.clear()
             self.currentZoom = 1.0
             self.ui.graphicsView.resetTransform()
             self.renderPreview(self.cafile.rootlayer)
+            if hasattr(self._applyAnimation, 'animations'):
+                self.animations = list(self._applyAnimation.animations)
             self.fitPreviewToView()
             self.isDirty = False
-            self.saveButton.setEnabled(False)
         else:
             self.ui.filename.setText("No File Open")
             self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
@@ -1107,6 +1112,12 @@ class MainWindow(QMainWindow):
     # preview section
     def renderPreview(self, root_layer, target_state=None):
         """Render the preview of the layer hierarchy with optional target state"""
+        # Clear previous animation buffers
+        if hasattr(self._applyAnimation, 'animations'):
+            self._applyAnimation.animations.clear()
+        # Also clear MainWindow animations list
+        self.animations = []
+        # Clear scene for fresh render
         self.scene.clear()
         
         bounds = QRectF(0, 0, 1000, 1000)
@@ -1140,7 +1151,10 @@ class MainWindow(QMainWindow):
         
         all_items_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(all_items_rect)
-        
+        # Capture all animations applied during this render
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
+
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
         if hasattr(layer, "hidden") and layer.hidden:
             return
@@ -1540,13 +1554,18 @@ class MainWindow(QMainWindow):
         if handler:
             handler(current, row_index)
 
+        # Reset animations list and preview state for State items
+        was_playing = getattr(self, 'animations_playing', False)
         self.animations = []
-        
-        self.previewState(layer, state_name)
-        
-        if was_playing:
-            self.animations_playing = False
-            self.toggleAnimations()
+        if element_type == "State":
+            # Determine layer and state name for preview
+            layer_id = current.text(2)
+            layer = self.cafile.rootlayer.findlayer(layer_id) if layer_id else self.cafile.rootlayer
+            state_name = current.text(0)
+            self.previewState(layer, state_name)
+            if was_playing:
+                self.animations_playing = False
+                self.toggleAnimations()
         self.ui.tableWidget.blockSignals(False)
 
     # STATES
@@ -1791,6 +1810,11 @@ class MainWindow(QMainWindow):
         if not layer or not state_name:
             return
             
+        # Clear previous animations in applyAnimation and mainWindow
+        if hasattr(self._applyAnimation, 'animations'):
+            self._applyAnimation.animations.clear()
+        self.animations = []
+        
         self.scene.clear()
         
         base_state = None
@@ -1807,7 +1831,11 @@ class MainWindow(QMainWindow):
             for element in target_state.elements:
                 if element.__class__.__name__ == "LKStateAddAnimation":
                     self.applyAnimationsToPreview(element)
-                    
+        
+        # Copy applied animations to MainWindow.animations for toggling
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
+
     def previewTransition(self, layer_id, fromState, toState):
         layer = None
         if layer_id:
@@ -1835,20 +1863,22 @@ class MainWindow(QMainWindow):
                 if hasattr(element, "animations"):
                     for anim in element.animations:
                         self.applyTransitionAnimationToPreview(element.targetId, element.key, anim)
+        
+        # Copy applied transition animations to MainWindow.animations for toggling
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
 
     # pause and play section
     def toggleAnimations(self):
-        if not hasattr(self, 'animations_playing'):
-            self.animations_playing = False
-            
-        self.animations_playing = not self.animations_playing
-            
+        # Toggle animation playing state
+        self.animations_playing = not getattr(self, 'animations_playing', False)
+        # Update Play/Pause icon
         if self.animations_playing:
             if self.isDarkMode:
                 self.playButton.setIcon(self.pauseIconWhite)
             else:
                 self.playButton.setIcon(self.pauseIcon)
-                
+            # Start or resume all animations
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     if anim.state() == QVariantAnimation.State.Stopped:
@@ -1861,11 +1891,11 @@ class MainWindow(QMainWindow):
                     else:
                         anim.resume()
         else:
+            # Pause animations and update icon
             if self.isDarkMode:
                 self.playButton.setIcon(self.playIconWhite)
             else:
                 self.playButton.setIcon(self.playIcon)
-                
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     anim.pause()
@@ -1982,6 +2012,16 @@ class MainWindow(QMainWindow):
     def saveFile(self):
         if not (hasattr(self, 'cafilepath') and hasattr(self, 'cafile')):
             return
+        if not getattr(self, 'isDirty', False):
+            # Show info dialog with OpenPoster icon when no changes
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Save File")
+            msg.setText("No changes have been made.")
+            # Use app icon
+            pix = QPixmap(":/assets/openposter.png")
+            msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            msg.exec()
+            return
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save As",
@@ -1997,7 +2037,6 @@ class MainWindow(QMainWindow):
             self.ui.filename.setText(save_path)
             self.statusBar().showMessage(f"Saved As {save_path}", 3000)
             self.isDirty = False
-            self.saveButton.setEnabled(False)
         except Exception as e:
             QMessageBox.critical(self, "Save Failed", f"Unable to save: {e}")
 

@@ -63,5 +63,6 @@ class SettingsDialog(QDialog):
     
     def reset_panel_sizes(self):
         if self.config_manager:
-            self.config_manager.reset_to_defaults()
+            self.config_manager.save_splitter_sizes("mainSplitter", [])
+            self.config_manager.save_splitter_sizes("layersSplitter", [])
             self.parent().apply_default_sizes() 
