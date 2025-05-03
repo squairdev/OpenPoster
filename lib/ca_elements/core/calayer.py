@@ -106,7 +106,7 @@ class CALayer:
         e.set('position', " ".join(self.position))
         e.set('bounds', " ".join(self.bounds))
         if self.hidden:
-            e.set('hidden', True)
+            e.set('hidden', 'true')
         if self.transform is not None:
             e.set('transform', self.transform)
         if self.anchorPoint is not None:

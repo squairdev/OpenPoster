@@ -5,12 +5,13 @@ from lib.ca_elements.core import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 import webbrowser
+import re
 
 import resources_rc
 
@@ -54,6 +55,7 @@ class MainWindow(QMainWindow):
         
         # set up keyboard shortcuts
         self.setupShortcuts()
+        self.isDirty = False
 
     # app resources
     def bindOperationFunctions(self):
@@ -87,6 +89,8 @@ class MainWindow(QMainWindow):
         self.settingsIconWhite = QIcon(":/icons/settings-white.svg")
         self.discordIcon = QIcon(":/icons/discord.svg")
         self.discordIconWhite = QIcon(":/icons/discord-white.svg")
+        self.saveIcon = QIcon(":/icons/save.svg")
+        self.saveIconWhite = QIcon(":/icons/save-white.svg")
         self.isDarkMode = False
     
     # themes section
@@ -165,6 +169,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIconWhite)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIconWhite)
+            if hasattr(self, 'saveButton'):
+                self.saveButton.setIcon(self.saveIconWhite)
         else:
             self.applyLightModeStyles()
             if hasattr(self, 'editButton'):
@@ -178,6 +184,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIcon)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIcon)
+            if hasattr(self, 'saveButton'):
+                self.saveButton.setIcon(self.saveIcon)
         
         if previous_dark_mode != self.isDarkMode:
             self.updateCategoryHeaders()
@@ -417,7 +425,23 @@ class MainWindow(QMainWindow):
         """)
         self.discordButton.clicked.connect(self.openDiscord)
         
+        self.saveButton = QPushButton(self.ui.headerWidget)
+        self.saveButton.setObjectName("saveButton")
+        self.saveButton.setIcon(self.saveIconWhite if self.isDarkMode else self.saveIcon)
+        self.saveButton.setToolTip("Save File")
+        self.saveButton.setFixedSize(40, 40)
+        self.saveButton.setIconSize(QSize(24, 24))
+        self.saveButton.setStyleSheet(
+            """
+            QPushButton { border: none; background-color: transparent; }
+            QPushButton:hover { background-color: rgba(128, 128, 128, 30); border-radius: 20px; }
+            """
+        )
+        self.saveButton.clicked.connect(self.saveFile)
+        self.saveButton.setEnabled(False)
+        
         self.ui.horizontalLayout_header.addWidget(self.discordButton)
+        self.ui.horizontalLayout_header.insertWidget(1, self.saveButton)
         self.ui.horizontalLayout_header.addWidget(self.settingsButton)
         
         self.ui.openFile.clicked.connect(self.openFile)
@@ -425,6 +449,7 @@ class MainWindow(QMainWindow):
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
         self.ui.tableWidget.setColumnCount(2)
         self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
+        self.ui.tableWidget.itemChanged.connect(self.onInspectorChanged)
         self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
         self.showFullPath = True
         
@@ -466,6 +491,14 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         
         self.scene = CheckerboardGraphicsScene()
+        orig_make_item = self.scene.makeItemEditable
+        def makeItemEditable(item):
+            editable = orig_make_item(item)
+            if editable:
+                editable.itemChanged.connect(lambda it, item=item: self.onItemMoved(item))
+                editable.transformChanged.connect(lambda tr, item=item: self.onTransformChanged(item, tr))
+            return editable
+        self.scene.makeItemEditable = makeItemEditable
         self.ui.graphicsView.setScene(self.scene)
         
         self.ui.graphicsView.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -532,6 +565,8 @@ class MainWindow(QMainWindow):
             self.ui.graphicsView.resetTransform()
             self.renderPreview(self.cafile.rootlayer)
             self.fitPreviewToView()
+            self.isDirty = False
+            self.saveButton.setEnabled(False)
         else:
             self.ui.filename.setText("No File Open")
             self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
@@ -579,16 +614,20 @@ class MainWindow(QMainWindow):
     def openInInspector(self, current, _):
         if current is None:
             return
-            
+        self.ui.tableWidget.blockSignals(True)
+        self.currentInspectObject = None
+        
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
+        
         
         element_type = current.text(1)
         if element_type == "Animation":
             parent = self.cafile.rootlayer.findlayer(current.text(3))
             element = parent.findanimation(current.text(0))
             if element:
+                self.currentInspectObject = element
                 row_index = self.add_category_header("Basic Info", row_index)
                 
                 self.add_inspector_row("NAME", current.text(0), row_index)
@@ -718,6 +757,7 @@ class MainWindow(QMainWindow):
                 element = self.cafile.rootlayer
                 
             if element:
+                self.currentInspectObject = element
                 row_index = self.add_category_header("Basic Info", row_index)
                 
                 self.add_inspector_row("NAME", current.text(0), row_index)
@@ -983,6 +1023,8 @@ class MainWindow(QMainWindow):
                 
                 self.highlightLayerInPreview(element)
         
+        self.ui.tableWidget.blockSignals(False)
+
     def add_category_header(self, category_name, row_index):
         self.ui.tableWidget.insertRow(row_index)
         
@@ -1470,7 +1512,9 @@ class MainWindow(QMainWindow):
     def openStateInInspector(self, current, _):
         if current is None:
             return
-
+        self.ui.tableWidget.blockSignals(True)
+        self.currentInspectObject = None
+        
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
@@ -1495,6 +1539,15 @@ class MainWindow(QMainWindow):
 
         if handler:
             handler(current, row_index)
+
+        self.animations = []
+        
+        self.previewState(layer, state_name)
+        
+        if was_playing:
+            self.animations_playing = False
+            self.toggleAnimations()
+        self.ui.tableWidget.blockSignals(False)
 
     # STATES
     def _handle_state(self, current, row_index):
@@ -1844,7 +1897,13 @@ class MainWindow(QMainWindow):
         if self.isMacOS:
             alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
             alt_settings_shortcut.activated.connect(self.showSettingsDialog)
-    
+        # Save file shortcuts
+        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+        save_shortcut.activated.connect(self.saveFile)
+        if self.isMacOS:
+            save_shortcut_mac = QShortcut(QKeySequence("Meta+S"), self)
+            save_shortcut_mac.activated.connect(self.saveFile)
+
     # settings section
     def showSettingsDialog(self):
         dialog = SettingsDialog(self, self.config_manager)
@@ -1902,9 +1961,82 @@ class MainWindow(QMainWindow):
             self.config_manager.save_window_geometry(size, position, False)
 
     def closeEvent(self, event):
+        if getattr(self, 'isDirty', False):
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Unsaved Changes")
+            msg.setText("You have unsaved changes. Are you sure you want to exit without saving?")
+            pix = QPixmap(":/assets/openposter.png")
+            msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg.setDefaultButton(QMessageBox.No)
+            reply = msg.exec()
+            if reply != QMessageBox.Yes:
+                event.ignore()
+                return
         self.saveSplitterSizes()
-        self.saveWindowGeometry() 
+        self.saveWindowGeometry()
         super().closeEvent(event)
 
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
+    def saveFile(self):
+        if not (hasattr(self, 'cafilepath') and hasattr(self, 'cafile')):
+            return
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save As",
+            self.cafilepath,
+            "Core Animation Bundle (*.ca)"
+        )
+        if not save_path:
+            return
+        dest_parent, base = os.path.split(save_path)
+        try:
+            self.cafile.write_file(base, dest_parent)
+            self.cafilepath = save_path
+            self.ui.filename.setText(save_path)
+            self.statusBar().showMessage(f"Saved As {save_path}", 3000)
+            self.isDirty = False
+            self.saveButton.setEnabled(False)
+        except Exception as e:
+            QMessageBox.critical(self, "Save Failed", f"Unable to save: {e}")
+
+    def markDirty(self):
+        self.isDirty = True
+        self.saveButton.setEnabled(True)
+
+    def onItemMoved(self, item):
+        layer_id = item.data(0)
+        layer = self.cafile.rootlayer.findlayer(layer_id)
+        if layer:
+            pos = item.pos()
+            layer.position = [str(pos.x()), str(pos.y())]
+        self.markDirty()
+
+    def onTransformChanged(self, item, transform):
+        layer_id = item.data(0)
+        layer = self.cafile.rootlayer.findlayer(layer_id)
+        if layer:
+            s = f"{transform.m11():.6f} {transform.m12():.6f} {transform.m21():.6f} {transform.m22():.6f} {transform.m31():.6f} {transform.m32():.6f}"
+            layer.transform = s
+        self.markDirty()
+
+    def onInspectorChanged(self, item):
+        if item.column() != 1:
+            return
+        obj = getattr(self, 'currentInspectObject', None)
+        if obj is None:
+            return
+        key = self.ui.tableWidget.item(item.row(), 0).text()
+        val = item.text()
+        parts = key.lower().split()
+        xml_key = parts[0] + ''.join(p.capitalize() for p in parts[1:])
+        if not hasattr(obj, xml_key):
+            return
+        orig_val = getattr(obj, xml_key)
+        if isinstance(orig_val, list):
+            nums = re.findall(r'-?\d+\.?\d*', val)
+            setattr(obj, xml_key, nums)
+        else:
+            setattr(obj, xml_key, val)
+        self.markDirty()
