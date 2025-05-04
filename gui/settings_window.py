@@ -42,12 +42,6 @@ class SettingsDialog(QDialog):
         browse.clicked.connect(self.browse_nugget_executable)
         path_row = QHBoxLayout(); path_row.addWidget(path_lbl); path_row.addWidget(self.nugget_path_lineedit); path_row.addWidget(browse)
         nugget_layout.addLayout(path_row)
-        open_lbl = QLabel("Open in Nugget after export")
-        self.open_nugget_checkbox = QCheckBox()
-        self.open_nugget_checkbox.setChecked(self.config_manager.get_open_in_nugget())
-        self.open_nugget_checkbox.stateChanged.connect(lambda s: self.config_manager.set_open_in_nugget(s == Qt.Checked))
-        open_row = QHBoxLayout(); open_row.addWidget(open_lbl); open_row.addStretch(); open_row.addWidget(self.open_nugget_checkbox)
-        nugget_layout.addLayout(open_row)
         tabs.addTab(nugget_tab, "Nugget")
         # Shortcuts Tab
         short_tab = QWidget()

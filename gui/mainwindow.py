@@ -2066,17 +2066,12 @@ class MainWindow(QMainWindow):
 
             temp_dir = tempfile.mkdtemp()
             try:
-                bundle_content_dir = os.path.join(temp_dir, "content") # Dir to be zipped
-                os.makedirs(bundle_content_dir, exist_ok=True)
-                
-                self._create_tendies_structure(bundle_content_dir, self.cafilepath)
+                self._create_tendies_structure(temp_dir, self.cafilepath)
 
-                shutil.make_archive(path[:-len('.tendies')], 'zip', temp_dir, "content")
+                shutil.make_archive(path[:-len('.tendies')], 'zip', root_dir=temp_dir)
                 
                 os.rename(path[:-len('.tendies')] + '.zip', path)
 
-                self.statusBar().showMessage(f"Saved As {path}", 3000)
-                self.isDirty = False # Mark clean after successful export
             except Exception as e:
                  QMessageBox.critical(self, "Export Error", f"Failed to create .tendies file: {e}")
             finally:
@@ -2085,18 +2080,17 @@ class MainWindow(QMainWindow):
         elif choice == 'nugget':
             temp_dir = tempfile.mkdtemp()
             try:
-                bundle_content_dir = os.path.join(temp_dir, "content") # Dir to be zipped
-                os.makedirs(bundle_content_dir, exist_ok=True)
-                
-                self._create_tendies_structure(bundle_content_dir, self.cafilepath)
-                temp_zip_base = os.path.join(temp_dir, "nugget_export")
-                temp_zip_path = temp_zip_base + ".tendies" 
+                self._create_tendies_structure(temp_dir, self.cafilepath)
 
-                shutil.make_archive(temp_zip_base, 'zip', temp_dir, "content")
-                
-                os.rename(temp_zip_base + '.zip', temp_zip_path)
+                export_dir = self.config_manager.config_dir
+                os.makedirs(export_dir, exist_ok=True)
+                base_name = os.path.splitext(os.path.basename(self.cafilepath))[0]
+                archive_base = os.path.join(export_dir, base_name)
+                zip_file = shutil.make_archive(archive_base, 'zip', root_dir=temp_dir)
+                tendies_path = archive_base + '.tendies'
+                os.rename(zip_file, tendies_path)
+                target = tendies_path
 
-                target = temp_zip_path 
                 nugget_exec = self.config_manager.get_nugget_exec_path()
 
                 if nugget_exec:
@@ -2161,7 +2155,9 @@ class MainWindow(QMainWindow):
             # Copy the .ca bundle content into the .wallpaper directory
             if not os.path.exists(ca_source_path):
                  raise FileNotFoundError(f".ca source path does not exist: {ca_source_path}")
-            shutil.copytree(ca_source_path, wallpaper_dir, dirs_exist_ok=True)
+            ca_basename = os.path.basename(ca_source_path)
+            ca_dest_dir = os.path.join(wallpaper_dir, ca_basename)
+            shutil.copytree(ca_source_path, ca_dest_dir)
             
         except Exception as e:
             print(f"Error creating tendies structure in {base_dir}: {e}")
