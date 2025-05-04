@@ -5,7 +5,7 @@ from lib.ca_elements.core.cafile import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
@@ -2053,50 +2053,122 @@ class MainWindow(QMainWindow):
             self.cafilepath = path
             self.ui.filename.setText(path)
             self.statusBar().showMessage(f"Saved As {path}", 3000)
+            self.isDirty = False # Mark clean after successful save
+            
         elif choice == 'tendies':
             path, _ = QFileDialog.getSaveFileName(self, "Save as .tendies", self.cafilepath, "Tendies Bundle (*.tendies)")
             if not path:
                 return
-            dest, bundle = os.path.split(path)
-            bundle_dir = os.path.join(dest, bundle)
-            os.makedirs(bundle_dir, exist_ok=True)
-            descriptors_src = os.path.join(os.getcwd(), "descriptors")
-            shutil.copytree(descriptors_src, os.path.join(bundle_dir, "descriptors"))
-            desc_root = os.path.join(bundle_dir, "descriptors")
-            eid = next(d for d in os.listdir(desc_root) if os.path.isdir(os.path.join(desc_root, d)))
-            contents = os.path.join(desc_root, eid, "versions", "0", "contents")
-            wallpaper_dir = os.path.join(contents, "OpenPoster.wallpaper")
-            os.makedirs(wallpaper_dir, exist_ok=True)
-            shutil.copytree(self.cafilepath, wallpaper_dir, dirs_exist_ok=True)
-            self.cafilepath = path
-            self.ui.filename.setText(path)
-            self.statusBar().showMessage(f"Saved As {path}", 3000)
-        else:
-            tempdir = tempfile.mkdtemp()
-            descriptors_src = os.path.join(os.getcwd(), "descriptors")
-            descriptors_tmp = os.path.join(tempdir, "descriptors")
-            shutil.copytree(descriptors_src, descriptors_tmp)
-            eid = next(d for d in os.listdir(descriptors_tmp) if os.path.isdir(os.path.join(descriptors_tmp, d)))
-            wallpaper_dir = os.path.join(descriptors_tmp, eid, "versions", "0", "contents", "OpenPoster.wallpaper")
-            os.makedirs(wallpaper_dir, exist_ok=True)
-            shutil.copytree(self.cafilepath, wallpaper_dir, dirs_exist_ok=True)
-            target = wallpaper_dir
-            nugget_exec = self.config_manager.get_nugget_exec_path()
-            if nugget_exec:
-                if nugget_exec.lower().endswith(".py"):
-                    cmd = [sys.executable, nugget_exec, target]
-                elif nugget_exec.endswith(".app") and self.isMacOS:
-                    cmd = ["open", nugget_exec, "--args", target]
+            
+            # Ensure the path ends with .tendies
+            if not path.lower().endswith('.tendies'):
+                path += '.tendies'
+
+            temp_dir = tempfile.mkdtemp()
+            try:
+                bundle_content_dir = os.path.join(temp_dir, "content") # Dir to be zipped
+                os.makedirs(bundle_content_dir, exist_ok=True)
+                
+                self._create_tendies_structure(bundle_content_dir, self.cafilepath)
+
+                shutil.make_archive(path[:-len('.tendies')], 'zip', temp_dir, "content")
+                
+                os.rename(path[:-len('.tendies')] + '.zip', path)
+
+                self.statusBar().showMessage(f"Saved As {path}", 3000)
+                self.isDirty = False # Mark clean after successful export
+            except Exception as e:
+                 QMessageBox.critical(self, "Export Error", f"Failed to create .tendies file: {e}")
+            finally:
+                shutil.rmtree(temp_dir) # Clean up temp directory
+
+        elif choice == 'nugget':
+            temp_dir = tempfile.mkdtemp()
+            try:
+                bundle_content_dir = os.path.join(temp_dir, "content") # Dir to be zipped
+                os.makedirs(bundle_content_dir, exist_ok=True)
+                
+                self._create_tendies_structure(bundle_content_dir, self.cafilepath)
+                temp_zip_base = os.path.join(temp_dir, "nugget_export")
+                temp_zip_path = temp_zip_base + ".tendies" 
+
+                shutil.make_archive(temp_zip_base, 'zip', temp_dir, "content")
+                
+                os.rename(temp_zip_base + '.zip', temp_zip_path)
+
+                target = temp_zip_path 
+                nugget_exec = self.config_manager.get_nugget_exec_path()
+
+                if nugget_exec:
+                    if not os.path.exists(nugget_exec):
+                         QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
+                    else:
+                        try:
+                            if nugget_exec.lower().endswith(".py"):
+                                cmd = [sys.executable, nugget_exec, target]
+                            elif nugget_exec.endswith(".app") and self.isMacOS:
+                                cmd = ["open", nugget_exec, "--args", target]
+                            else:
+                                cmd = [nugget_exec, target]
+                            
+                            print(f"Running Nugget command: {' '.join(cmd)}") # Debug print
+                            subprocess.run(cmd, check=True, capture_output=True, text=True) # Capture output
+                            self.statusBar().showMessage("Exported to Nugget successfully", 3000)
+                            self.isDirty = False # Mark clean after successful export
+                        except subprocess.CalledProcessError as e:
+                             error_message = f"Nugget execution failed.\n"
+                             error_message += f"Command: {' '.join(e.cmd)}\n"
+                             error_message += f"Return Code: {e.returncode}\n"
+                             if e.stdout:
+                                 error_message += f"stdout:\n{e.stdout}\n"
+                             if e.stderr:
+                                 error_message += f"stderr:\n{e.stderr}"
+                             print(error_message) # Print detailed error
+                             QMessageBox.critical(self, "Nugget Error", f"Nugget execution failed. Check console for details.\n" + f"Error: {e.stderr or e.stdout or 'Unknown error'}")
+                        except Exception as e:
+                            QMessageBox.critical(self, "Nugget Error", f"An unexpected error occurred while running Nugget: {e}")
                 else:
-                    cmd = [nugget_exec, target]
-                subprocess.run(cmd, check=True)
-            shutil.rmtree(tempdir)
-            self.statusBar().showMessage("Exported to Nugget", 3000)
-        self.isDirty = False
+                    QMessageBox.information(self, "Nugget Export", "Nugget executable path is not configured in settings.")
+
+            except Exception as e:
+                 QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
+            finally:
+                shutil.rmtree(temp_dir) # Clean up temp directory (incl. content and zip)
+        
+        # Removed self.isDirty = False from here as it's now handled per-case
+
+    def _create_tendies_structure(self, base_dir, ca_source_path):
+        """Creates the necessary directory structure for a .tendies bundle inside base_dir."""
+        try:
+            # Copy descriptors template
+            descriptors_src = os.path.join(os.getcwd(), "descriptors")
+            if not os.path.exists(descriptors_src):
+                raise FileNotFoundError("descriptors template directory not found")
+                
+            descriptors_dest = os.path.join(base_dir, "descriptors")
+            shutil.copytree(descriptors_src, descriptors_dest, dirs_exist_ok=True)
+
+            # Find the EID directory (assuming only one)
+            eid = next((d for d in os.listdir(descriptors_dest) if os.path.isdir(os.path.join(descriptors_dest, d)) and not d.startswith('.')), None)
+            if not eid:
+                raise FileNotFoundError("Could not find EID directory within descriptors template")
+
+            # Define the path for the .wallpaper bundle
+            contents_dir = os.path.join(descriptors_dest, eid, "versions", "0", "contents")
+            wallpaper_dir = os.path.join(contents_dir, "OpenPoster.wallpaper")
+            os.makedirs(wallpaper_dir, exist_ok=True)
+
+            # Copy the .ca bundle content into the .wallpaper directory
+            if not os.path.exists(ca_source_path):
+                 raise FileNotFoundError(f".ca source path does not exist: {ca_source_path}")
+            shutil.copytree(ca_source_path, wallpaper_dir, dirs_exist_ok=True)
+            
+        except Exception as e:
+            print(f"Error creating tendies structure in {base_dir}: {e}")
+            raise # Re-raise the exception to be caught by the caller
 
     def markDirty(self):
         self.isDirty = True
-        self.exportButton.setEnabled(True)
 
     def onItemMoved(self, item):
         layer_id = item.data(0)
