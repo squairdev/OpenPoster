@@ -1,17 +1,19 @@
 import sys
 import os
 import math
-from lib.ca_elements.core import CAFile
+from lib.ca_elements.core.cafile import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 import webbrowser
 import re
+import subprocess
+import tempfile, shutil
 
 import resources_rc
 
@@ -22,7 +24,8 @@ from ._applyanimation import ApplyAnimation
 from ._assets import Assets
 
 from .config_manager import ConfigManager
-from .settings_dialog import SettingsDialog
+from .settings_window import SettingsDialog
+from .exportoptions_window import ExportOptionsDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -89,8 +92,8 @@ class MainWindow(QMainWindow):
         self.settingsIconWhite = QIcon(":/icons/settings-white.svg")
         self.discordIcon = QIcon(":/icons/discord.svg")
         self.discordIconWhite = QIcon(":/icons/discord-white.svg")
-        self.saveIcon = QIcon(":/icons/save.svg")
-        self.saveIconWhite = QIcon(":/icons/save-white.svg")
+        self.exportIcon = QIcon(":/icons/export.svg")
+        self.exportIconWhite = QIcon(":/icons/export-white.svg")
         self.isDarkMode = False
     
     # themes section
@@ -169,8 +172,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIconWhite)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIconWhite)
-            if hasattr(self, 'saveButton'):
-                self.saveButton.setIcon(self.saveIconWhite)
+            if hasattr(self, 'exportButton'):
+                self.exportButton.setIcon(self.exportIconWhite)
         else:
             self.applyLightModeStyles()
             if hasattr(self, 'editButton'):
@@ -184,8 +187,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIcon)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIcon)
-            if hasattr(self, 'saveButton'):
-                self.saveButton.setIcon(self.saveIcon)
+            if hasattr(self, 'exportButton'):
+                self.exportButton.setIcon(self.exportIcon)
         
         if previous_dark_mode != self.isDarkMode:
             self.updateCategoryHeaders()
@@ -407,40 +410,28 @@ class MainWindow(QMainWindow):
         """)
         self.settingsButton.clicked.connect(self.showSettingsDialog)
         
-        self.discordButton = QPushButton(self.ui.headerWidget)
-        self.discordButton.setObjectName("discordButton")
-        self.discordButton.setIcon(self.discordIconWhite if self.isDarkMode else self.discordIcon)
-        self.discordButton.setToolTip("Open Discord")
-        self.discordButton.setFixedSize(40, 40)
-        self.discordButton.setIconSize(QSize(24, 24))
-        self.discordButton.setStyleSheet("""
-            QPushButton { 
-                border: none; 
-                background-color: transparent;
+        # Create export button
+        self.exportButton = QPushButton(self.ui.headerWidget)
+        self.exportButton.setObjectName("exportButton")
+        self.exportButton.setText("Export")
+        self.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
+        self.exportButton.setToolTip("Export")
+        self.exportButton.setFixedHeight(35)
+        self.exportButton.setIconSize(QSize(18, 18))
+        self.exportButton.setStyleSheet("""
+            QPushButton {
+                border: 1px solid gray;
+                border-radius: 8px;
+                padding: 5px 10px;
             }
-            QPushButton:hover { 
+            QPushButton:hover {
                 background-color: rgba(128, 128, 128, 30);
-                border-radius: 20px;
             }
         """)
-        self.discordButton.clicked.connect(self.openDiscord)
-        
-        self.saveButton = QPushButton(self.ui.headerWidget)
-        self.saveButton.setObjectName("saveButton")
-        self.saveButton.setIcon(self.saveIconWhite if self.isDarkMode else self.saveIcon)
-        self.saveButton.setToolTip("Save File")
-        self.saveButton.setFixedSize(40, 40)
-        self.saveButton.setIconSize(QSize(24, 24))
-        self.saveButton.setStyleSheet(
-            """
-            QPushButton { border: none; background-color: transparent; }
-            QPushButton:hover { background-color: rgba(128, 128, 128, 30); border-radius: 20px; }
-            """
-        )
-        self.saveButton.clicked.connect(self.saveFile)
-        
-        self.ui.horizontalLayout_header.addWidget(self.discordButton)
-        self.ui.horizontalLayout_header.insertWidget(1, self.saveButton)
+        self.exportButton.clicked.connect(self.exportFile)
+        self.ui.horizontalLayout_header.addWidget(self.exportButton)
+        self.settingsButton.setFixedSize(35, 35)
+        self.settingsButton.setIconSize(QSize(18, 18))
         self.ui.horizontalLayout_header.addWidget(self.settingsButton)
         
         self.ui.openFile.clicked.connect(self.openFile)
@@ -1922,17 +1913,48 @@ class MainWindow(QMainWindow):
 
     def setupShortcuts(self):
         settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
+        settings_shortcut.setContext(Qt.ApplicationShortcut)
         settings_shortcut.activated.connect(self.showSettingsDialog)
         
         if self.isMacOS:
             alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
+            alt_settings_shortcut.setContext(Qt.ApplicationShortcut)
             alt_settings_shortcut.activated.connect(self.showSettingsDialog)
         # Save file shortcuts
-        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
-        save_shortcut.activated.connect(self.saveFile)
+        seq = self.config_manager.get_export_shortcut()
+        export_shortcut = QShortcut(QKeySequence(seq), self)
+        export_shortcut.setContext(Qt.ApplicationShortcut)
+        export_shortcut.activated.connect(self.exportFile)
+        self.export_shortcut = export_shortcut
         if self.isMacOS:
-            save_shortcut_mac = QShortcut(QKeySequence("Meta+S"), self)
-            save_shortcut_mac.activated.connect(self.saveFile)
+            meta_seq = seq.replace('Ctrl', 'Meta')
+            export_shortcut_mac = QShortcut(QKeySequence(meta_seq), self)
+            export_shortcut_mac.setContext(Qt.ApplicationShortcut)
+            export_shortcut_mac.activated.connect(self.exportFile)
+            self.export_shortcut_mac = export_shortcut_mac
+        # Zoom in/out shortcuts
+        zi_seq = self.config_manager.get_zoom_in_shortcut()
+        zoom_in_sc = QShortcut(QKeySequence(zi_seq), self)
+        zoom_in_sc.setContext(Qt.ApplicationShortcut)
+        zoom_in_sc.activated.connect(self.zoomIn)
+        self.zoom_in_sc = zoom_in_sc
+        if self.isMacOS:
+            mac_zi = zi_seq.replace('Ctrl', 'Meta')
+            zoom_in_sc_mac = QShortcut(QKeySequence(mac_zi), self)
+            zoom_in_sc_mac.setContext(Qt.ApplicationShortcut)
+            zoom_in_sc_mac.activated.connect(self.zoomIn)
+            self.zoom_in_sc_mac = zoom_in_sc_mac
+        zo_seq = self.config_manager.get_zoom_out_shortcut()
+        zoom_out_sc = QShortcut(QKeySequence(zo_seq), self)
+        zoom_out_sc.setContext(Qt.ApplicationShortcut)
+        zoom_out_sc.activated.connect(self.zoomOut)
+        self.zoom_out_sc = zoom_out_sc
+        if self.isMacOS:
+            mac_zo = zo_seq.replace('Ctrl', 'Meta')
+            zoom_out_sc_mac = QShortcut(QKeySequence(mac_zo), self)
+            zoom_out_sc_mac.setContext(Qt.ApplicationShortcut)
+            zoom_out_sc_mac.activated.connect(self.zoomOut)
+            self.zoom_out_sc_mac = zoom_out_sc_mac
 
     # settings section
     def showSettingsDialog(self):
@@ -1994,7 +2016,7 @@ class MainWindow(QMainWindow):
         if getattr(self, 'isDirty', False):
             msg = QMessageBox(self)
             msg.setWindowTitle("Unsaved Changes")
-            msg.setText("You have unsaved changes. Are you sure you want to exit without saving?")
+            msg.setText("You have unsaved changes. Are you sure you want to discard them and exit?")
             pix = QPixmap(":/assets/openposter.png")
             msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
@@ -2009,40 +2031,72 @@ class MainWindow(QMainWindow):
 
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
-    def saveFile(self):
-        if not (hasattr(self, 'cafilepath') and hasattr(self, 'cafile')):
-            return
-        if not getattr(self, 'isDirty', False):
-            # Show info dialog with OpenPoster icon when no changes
+    def exportFile(self):
+        if not hasattr(self, 'cafilepath') or not self.cafilepath or not hasattr(self, 'cafile') or not self.cafile:
             msg = QMessageBox(self)
-            msg.setWindowTitle("Save File")
-            msg.setText("No changes have been made.")
-            # Use app icon
+            msg.setWindowTitle("Export Error")
+            msg.setText("No file is currently open. Please open a .ca file first.")
             pix = QPixmap(":/assets/openposter.png")
             msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             msg.exec()
             return
-        save_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save As",
-            self.cafilepath,
-            "Core Animation Bundle (*.ca)"
-        )
-        if not save_path:
+        dialog = ExportOptionsDialog(self)
+        if dialog.exec() != QDialog.Accepted or not dialog.choice:
             return
-        dest_parent, base = os.path.split(save_path)
-        try:
-            self.cafile.write_file(base, dest_parent)
-            self.cafilepath = save_path
-            self.ui.filename.setText(save_path)
-            self.statusBar().showMessage(f"Saved As {save_path}", 3000)
-            self.isDirty = False
-        except Exception as e:
-            QMessageBox.critical(self, "Save Failed", f"Unable to save: {e}")
+        choice = dialog.choice
+        if choice == 'copy':
+            path, _ = QFileDialog.getSaveFileName(self, "Save As", self.cafilepath, "Core Animation Bundle (*.ca)")
+            if not path:
+                return
+            dest, name = os.path.split(path)
+            self.cafile.write_file(name, dest)
+            self.cafilepath = path
+            self.ui.filename.setText(path)
+            self.statusBar().showMessage(f"Saved As {path}", 3000)
+        elif choice == 'tendies':
+            path, _ = QFileDialog.getSaveFileName(self, "Save as .tendies", self.cafilepath, "Tendies Bundle (*.tendies)")
+            if not path:
+                return
+            dest, bundle = os.path.split(path)
+            bundle_dir = os.path.join(dest, bundle)
+            os.makedirs(bundle_dir, exist_ok=True)
+            descriptors_src = os.path.join(os.getcwd(), "descriptors")
+            shutil.copytree(descriptors_src, os.path.join(bundle_dir, "descriptors"))
+            desc_root = os.path.join(bundle_dir, "descriptors")
+            eid = next(d for d in os.listdir(desc_root) if os.path.isdir(os.path.join(desc_root, d)))
+            contents = os.path.join(desc_root, eid, "versions", "0", "contents")
+            wallpaper_dir = os.path.join(contents, "OpenPoster.wallpaper")
+            os.makedirs(wallpaper_dir, exist_ok=True)
+            shutil.copytree(self.cafilepath, wallpaper_dir, dirs_exist_ok=True)
+            self.cafilepath = path
+            self.ui.filename.setText(path)
+            self.statusBar().showMessage(f"Saved As {path}", 3000)
+        else:
+            tempdir = tempfile.mkdtemp()
+            descriptors_src = os.path.join(os.getcwd(), "descriptors")
+            descriptors_tmp = os.path.join(tempdir, "descriptors")
+            shutil.copytree(descriptors_src, descriptors_tmp)
+            eid = next(d for d in os.listdir(descriptors_tmp) if os.path.isdir(os.path.join(descriptors_tmp, d)))
+            wallpaper_dir = os.path.join(descriptors_tmp, eid, "versions", "0", "contents", "OpenPoster.wallpaper")
+            os.makedirs(wallpaper_dir, exist_ok=True)
+            shutil.copytree(self.cafilepath, wallpaper_dir, dirs_exist_ok=True)
+            target = wallpaper_dir
+            nugget_exec = self.config_manager.get_nugget_exec_path()
+            if nugget_exec:
+                if nugget_exec.lower().endswith(".py"):
+                    cmd = [sys.executable, nugget_exec, target]
+                elif nugget_exec.endswith(".app") and self.isMacOS:
+                    cmd = ["open", nugget_exec, "--args", target]
+                else:
+                    cmd = [nugget_exec, target]
+                subprocess.run(cmd, check=True)
+            shutil.rmtree(tempdir)
+            self.statusBar().showMessage("Exported to Nugget", 3000)
+        self.isDirty = False
 
     def markDirty(self):
         self.isDirty = True
-        self.saveButton.setEnabled(True)
+        self.exportButton.setEnabled(True)
 
     def onItemMoved(self, item):
         layer_id = item.data(0)
@@ -2079,3 +2133,20 @@ class MainWindow(QMainWindow):
         else:
             setattr(obj, xml_key, val)
         self.markDirty()
+
+    def zoomIn(self):
+        self.ui.graphicsView.handleZoom(120)
+
+    def zoomOut(self):
+        self.ui.graphicsView.handleZoom(-120)
+
+    def keyPressEvent(self, event):
+        mods = event.modifiers()
+        if (mods & Qt.ControlModifier) or (self.isMacOS and (mods & Qt.MetaModifier)):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal, Qt.KeypadPlus):
+                self.zoomIn()
+                return
+            if event.key() in (Qt.Key_Minus, Qt.Key_Underscore, Qt.KeypadMinus):
+                self.zoomOut()
+                return
+        super(MainWindow, self).keyPressEvent(event)
