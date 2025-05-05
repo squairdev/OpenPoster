@@ -9,7 +9,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.config_manager = config_manager
         self.setWindowTitle("Settings")
-        self.resize(600, 400)
+        self.resize(600, 235)
         self.init_ui()
 
     def init_ui(self):
@@ -100,15 +100,27 @@ class SettingsDialog(QDialog):
         title_lbl = QLabel("<h2>OpenPoster Beta</h2>")
         version_lbl = QLabel("Version: v0.0.2")
         gui_lbl = QLabel("GUI: PySide6")
-        credits_lbl = QLabel("Credits:\nretronbv, enkei64, ItMe12s, superEVILFACE, AnhNguygenlost13, leminlimez")
+        contributors_html = """<b>Contributors:</b>
+<ul>
+  <li>retronbv - Owner, Manages libraries</li>
+  <li>enkei64 - GUI, Features developer</li>
+  <li>ItMe12s - QoL additions, features suggestions</li>
+  <li>AnhNguyenlost13 - Building/Compiling</li>
+  <li>LeminLimez - Signing and Nugget support</li>
+  <li>SuperEVILFACE - CAAnimation Class</li>
+</ul>
+"""
+        credits_lbl = QLabel(contributors_html)
+        credits_lbl.setTextFormat(Qt.RichText)
         credits_lbl.setWordWrap(True)
         website_lbl = QLabel('<a href="https://openposter.pages.dev">openposter.pages.dev</a>')
         website_lbl.setOpenExternalLinks(True)
         license_lbl = QLabel('<a href="https://github.com/openposter/OpenPoster/blob/main/LICENSE">MIT License</a>')
         license_lbl.setOpenExternalLinks(True)
-        discord_btn = QPushButton("Join Discord")
-        discord_btn.setIcon(QIcon(":/icons/discord.svg"))
+        discord_btn = QPushButton("  Join Discord")
+        discord_btn.setIcon(QIcon(":/icons/discord-white.svg") if getattr(self.parent(), 'isDarkMode', False) else QIcon(":/icons/discord.svg"))
         discord_btn.setIconSize(QSize(24, 24))
+        discord_btn.setStyleSheet("padding-left: 8px;")
         discord_btn.clicked.connect(lambda: webbrowser.open("https://discord.gg/t3abQJjHm6"))
         about_layout.addWidget(title_lbl)
         about_layout.addWidget(version_lbl)

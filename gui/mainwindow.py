@@ -2135,7 +2135,8 @@ class MainWindow(QMainWindow):
         """Creates the necessary directory structure for a .tendies bundle inside base_dir."""
         try:
             # Copy descriptors template
-            descriptors_src = os.path.join(os.getcwd(), "descriptors")
+            root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd())
+            descriptors_src = os.path.join(root, "descriptors")
             if not os.path.exists(descriptors_src):
                 raise FileNotFoundError("descriptors template directory not found")
                 
