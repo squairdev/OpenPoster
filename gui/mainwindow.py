@@ -34,6 +34,8 @@ class MainWindow(QMainWindow):
 
         # config manager
         self.config_manager = ConfigManager()
+        # Clear nugget-exports cache on startup
+        self._clear_nugget_exports_cache()
 
         # app resources then load
         self.bindOperationFunctions()
@@ -2082,7 +2084,7 @@ class MainWindow(QMainWindow):
             try:
                 self._create_tendies_structure(temp_dir, self.cafilepath)
 
-                export_dir = self.config_manager.config_dir
+                export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
                 os.makedirs(export_dir, exist_ok=True)
                 base_name = os.path.splitext(os.path.basename(self.cafilepath))[0]
                 archive_base = os.path.join(export_dir, base_name)
@@ -2092,42 +2094,30 @@ class MainWindow(QMainWindow):
                 target = tendies_path
 
                 nugget_exec = self.config_manager.get_nugget_exec_path()
-
-                if nugget_exec:
-                    if not os.path.exists(nugget_exec):
-                         QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
-                    else:
-                        try:
-                            if nugget_exec.lower().endswith(".py"):
-                                cmd = [sys.executable, nugget_exec, target]
-                            elif nugget_exec.endswith(".app") and self.isMacOS:
-                                cmd = ["open", nugget_exec, "--args", target]
-                            else:
-                                cmd = [nugget_exec, target]
-                            
-                            print(f"Running Nugget command: {' '.join(cmd)}") # Debug print
-                            subprocess.run(cmd, check=True, capture_output=True, text=True) # Capture output
-                            self.statusBar().showMessage("Exported to Nugget successfully", 3000)
-                            self.isDirty = False # Mark clean after successful export
-                        except subprocess.CalledProcessError as e:
-                             error_message = f"Nugget execution failed.\n"
-                             error_message += f"Command: {' '.join(e.cmd)}\n"
-                             error_message += f"Return Code: {e.returncode}\n"
-                             if e.stdout:
-                                 error_message += f"stdout:\n{e.stdout}\n"
-                             if e.stderr:
-                                 error_message += f"stderr:\n{e.stderr}"
-                             print(error_message) # Print detailed error
-                             QMessageBox.critical(self, "Nugget Error", f"Nugget execution failed. Check console for details.\n" + f"Error: {e.stderr or e.stdout or 'Unknown error'}")
-                        except Exception as e:
-                            QMessageBox.critical(self, "Nugget Error", f"An unexpected error occurred while running Nugget: {e}")
-                else:
+                if not nugget_exec:
                     QMessageBox.information(self, "Nugget Export", "Nugget executable path is not configured in settings.")
+                    return
+                if not os.path.exists(nugget_exec):
+                    QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
+                    return
 
+                # Asynchronous nugget execution
+                if nugget_exec.lower().endswith(".py"):
+                    program = sys.executable
+                    args = [nugget_exec, target]
+                elif nugget_exec.endswith(".app") and self.isMacOS:
+                    program = "open"
+                    args = [nugget_exec, "--args", target]
+                else:
+                    program = nugget_exec
+                    args = [target]
+
+                print("Running Nugget:", program, *args)
+                self._run_nugget_export(program, args)
             except Exception as e:
-                 QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
+                QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
             finally:
-                shutil.rmtree(temp_dir) # Clean up temp directory (incl. content and zip)
+                shutil.rmtree(temp_dir)  # Clean up temp directory (incl. content and zip)
         
         # Removed self.isDirty = False from here as it's now handled per-case
 
@@ -2219,3 +2209,36 @@ class MainWindow(QMainWindow):
                 self.zoomOut()
                 return
         super(MainWindow, self).keyPressEvent(event)
+
+    # Run nugget export asynchronously using QProcess
+    def _run_nugget_export(self, program, args):
+        process = QtCore.QProcess(self)
+        process.setProgram(program)
+        process.setArguments(args)
+        process.finished.connect(self._on_nugget_finished)
+        process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
+        process.start()
+
+    # Handle completion of nugget export process
+    def _on_nugget_finished(self, exitCode, exitStatus):
+        process = self.sender()
+        stdout = bytes(process.readAllStandardOutput()).decode()
+        stderr = bytes(process.readAllStandardError()).decode()
+        if exitCode == 0:
+            self.statusBar().showMessage("Exported to Nugget successfully", 3000)
+            self.isDirty = False
+        else:
+            error_message = f"Nugget execution failed (exit code {exitCode}).\n"
+            if stdout:
+                error_message += f"stdout:\n{stdout}\n"
+            if stderr:
+                error_message += f"stderr:\n{stderr}"
+            print(error_message)
+            QMessageBox.critical(self, "Nugget Error", f"Nugget execution failed. Check console for details.\nError: {stderr or stdout or 'Unknown error'}")
+
+    # Clear the nugget-exports folder at each launch
+    def _clear_nugget_exports_cache(self):
+        export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
+        if os.path.exists(export_dir):
+            shutil.rmtree(export_dir)
+        os.makedirs(export_dir, exist_ok=True)
