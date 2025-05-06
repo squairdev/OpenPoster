@@ -3,10 +3,13 @@ name: Build OpenPoster
 on:
   workflow_dispatch:
   push:
+    branches: main
+  pull_request:
+    branches: main
 
 jobs:
   lint:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, '[build]')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || startsWith(github.event.head_commit.message, '[build]')
     name: Lint
     runs-on: macos-latest
 
