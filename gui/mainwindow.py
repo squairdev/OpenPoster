@@ -1,16 +1,19 @@
 import sys
 import os
 import math
-from lib.ca_elements.core import CAFile
+from lib.ca_elements.core.cafile import CAFile
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
 import platform
 import webbrowser
+import re
+import subprocess
+import tempfile, shutil
 
 import resources_rc
 
@@ -21,7 +24,8 @@ from ._applyanimation import ApplyAnimation
 from ._assets import Assets
 
 from .config_manager import ConfigManager
-from .settings_dialog import SettingsDialog
+from .settings_window import SettingsDialog
+from .exportoptions_window import ExportOptionsDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -30,6 +34,8 @@ class MainWindow(QMainWindow):
 
         # config manager
         self.config_manager = ConfigManager()
+        # Clear nugget-exports cache on startup
+        self._clear_nugget_exports_cache()
 
         # app resources then load
         self.bindOperationFunctions()
@@ -54,6 +60,7 @@ class MainWindow(QMainWindow):
         
         # set up keyboard shortcuts
         self.setupShortcuts()
+        self.isDirty = False
 
     # app resources
     def bindOperationFunctions(self):
@@ -87,6 +94,8 @@ class MainWindow(QMainWindow):
         self.settingsIconWhite = QIcon(":/icons/settings-white.svg")
         self.discordIcon = QIcon(":/icons/discord.svg")
         self.discordIconWhite = QIcon(":/icons/discord-white.svg")
+        self.exportIcon = QIcon(":/icons/export.svg")
+        self.exportIconWhite = QIcon(":/icons/export-white.svg")
         self.isDarkMode = False
     
     # themes section
@@ -165,6 +174,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIconWhite)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIconWhite)
+            if hasattr(self, 'exportButton'):
+                self.exportButton.setIcon(self.exportIconWhite)
         else:
             self.applyLightModeStyles()
             if hasattr(self, 'editButton'):
@@ -178,6 +189,8 @@ class MainWindow(QMainWindow):
                 self.settingsButton.setIcon(self.settingsIcon)
             if hasattr(self, 'discordButton'):
                 self.discordButton.setIcon(self.discordIcon)
+            if hasattr(self, 'exportButton'):
+                self.exportButton.setIcon(self.exportIcon)
         
         if previous_dark_mode != self.isDarkMode:
             self.updateCategoryHeaders()
@@ -399,25 +412,28 @@ class MainWindow(QMainWindow):
         """)
         self.settingsButton.clicked.connect(self.showSettingsDialog)
         
-        self.discordButton = QPushButton(self.ui.headerWidget)
-        self.discordButton.setObjectName("discordButton")
-        self.discordButton.setIcon(self.discordIconWhite if self.isDarkMode else self.discordIcon)
-        self.discordButton.setToolTip("Open Discord")
-        self.discordButton.setFixedSize(40, 40)
-        self.discordButton.setIconSize(QSize(24, 24))
-        self.discordButton.setStyleSheet("""
-            QPushButton { 
-                border: none; 
-                background-color: transparent;
+        # Create export button
+        self.exportButton = QPushButton(self.ui.headerWidget)
+        self.exportButton.setObjectName("exportButton")
+        self.exportButton.setText("Export")
+        self.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
+        self.exportButton.setToolTip("Export")
+        self.exportButton.setFixedHeight(35)
+        self.exportButton.setIconSize(QSize(18, 18))
+        self.exportButton.setStyleSheet("""
+            QPushButton {
+                border: 1px solid gray;
+                border-radius: 8px;
+                padding: 5px 10px;
             }
-            QPushButton:hover { 
+            QPushButton:hover {
                 background-color: rgba(128, 128, 128, 30);
-                border-radius: 20px;
             }
         """)
-        self.discordButton.clicked.connect(self.openDiscord)
-        
-        self.ui.horizontalLayout_header.addWidget(self.discordButton)
+        self.exportButton.clicked.connect(self.exportFile)
+        self.ui.horizontalLayout_header.addWidget(self.exportButton)
+        self.settingsButton.setFixedSize(35, 35)
+        self.settingsButton.setIconSize(QSize(18, 18))
         self.ui.horizontalLayout_header.addWidget(self.settingsButton)
         
         self.ui.openFile.clicked.connect(self.openFile)
@@ -425,6 +441,7 @@ class MainWindow(QMainWindow):
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
         self.ui.tableWidget.setColumnCount(2)
         self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
+        self.ui.tableWidget.itemChanged.connect(self.onInspectorChanged)
         self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
         self.showFullPath = True
         
@@ -466,6 +483,14 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         
         self.scene = CheckerboardGraphicsScene()
+        orig_make_item = self.scene.makeItemEditable
+        def makeItemEditable(item):
+            editable = orig_make_item(item)
+            if editable:
+                editable.itemChanged.connect(lambda it, item=item: self.onItemMoved(item))
+                editable.transformChanged.connect(lambda tr, item=item: self.onTransformChanged(item, tr))
+            return editable
+        self.scene.makeItemEditable = makeItemEditable
         self.ui.graphicsView.setScene(self.scene)
         
         self.ui.graphicsView.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -527,11 +552,19 @@ class MainWindow(QMainWindow):
             
             self.populateStatesTreeWidget()
             
+            # Clear previous animations and reset buffer
+            if hasattr(self._applyAnimation, 'animations'):
+                self._applyAnimation.animations.clear()
+            self.animations = []
+            # Render preview and capture default layer animations
             self.scene.clear()
             self.currentZoom = 1.0
             self.ui.graphicsView.resetTransform()
             self.renderPreview(self.cafile.rootlayer)
+            if hasattr(self._applyAnimation, 'animations'):
+                self.animations = list(self._applyAnimation.animations)
             self.fitPreviewToView()
+            self.isDirty = False
         else:
             self.ui.filename.setText("No File Open")
             self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
@@ -579,16 +612,20 @@ class MainWindow(QMainWindow):
     def openInInspector(self, current, _):
         if current is None:
             return
-            
+        self.ui.tableWidget.blockSignals(True)
+        self.currentInspectObject = None
+        
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
+        
         
         element_type = current.text(1)
         if element_type == "Animation":
             parent = self.cafile.rootlayer.findlayer(current.text(3))
             element = parent.findanimation(current.text(0))
             if element:
+                self.currentInspectObject = element
                 row_index = self.add_category_header("Basic Info", row_index)
                 
                 self.add_inspector_row("NAME", current.text(0), row_index)
@@ -718,6 +755,7 @@ class MainWindow(QMainWindow):
                 element = self.cafile.rootlayer
                 
             if element:
+                self.currentInspectObject = element
                 row_index = self.add_category_header("Basic Info", row_index)
                 
                 self.add_inspector_row("NAME", current.text(0), row_index)
@@ -983,6 +1021,8 @@ class MainWindow(QMainWindow):
                 
                 self.highlightLayerInPreview(element)
         
+        self.ui.tableWidget.blockSignals(False)
+
     def add_category_header(self, category_name, row_index):
         self.ui.tableWidget.insertRow(row_index)
         
@@ -1065,6 +1105,12 @@ class MainWindow(QMainWindow):
     # preview section
     def renderPreview(self, root_layer, target_state=None):
         """Render the preview of the layer hierarchy with optional target state"""
+        # Clear previous animation buffers
+        if hasattr(self._applyAnimation, 'animations'):
+            self._applyAnimation.animations.clear()
+        # Also clear MainWindow animations list
+        self.animations = []
+        # Clear scene for fresh render
         self.scene.clear()
         
         bounds = QRectF(0, 0, 1000, 1000)
@@ -1098,7 +1144,10 @@ class MainWindow(QMainWindow):
         
         all_items_rect = self.scene.itemsBoundingRect()
         self.scene.setSceneRect(all_items_rect)
-        
+        # Capture all animations applied during this render
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
+
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
         if hasattr(layer, "hidden") and layer.hidden:
             return
@@ -1470,7 +1519,9 @@ class MainWindow(QMainWindow):
     def openStateInInspector(self, current, _):
         if current is None:
             return
-
+        self.ui.tableWidget.blockSignals(True)
+        self.currentInspectObject = None
+        
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
         row_index = 0
@@ -1495,6 +1546,20 @@ class MainWindow(QMainWindow):
 
         if handler:
             handler(current, row_index)
+
+        # Reset animations list and preview state for State items
+        was_playing = getattr(self, 'animations_playing', False)
+        self.animations = []
+        if element_type == "State":
+            # Determine layer and state name for preview
+            layer_id = current.text(2)
+            layer = self.cafile.rootlayer.findlayer(layer_id) if layer_id else self.cafile.rootlayer
+            state_name = current.text(0)
+            self.previewState(layer, state_name)
+            if was_playing:
+                self.animations_playing = False
+                self.toggleAnimations()
+        self.ui.tableWidget.blockSignals(False)
 
     # STATES
     def _handle_state(self, current, row_index):
@@ -1738,6 +1803,11 @@ class MainWindow(QMainWindow):
         if not layer or not state_name:
             return
             
+        # Clear previous animations in applyAnimation and mainWindow
+        if hasattr(self._applyAnimation, 'animations'):
+            self._applyAnimation.animations.clear()
+        self.animations = []
+        
         self.scene.clear()
         
         base_state = None
@@ -1754,7 +1824,11 @@ class MainWindow(QMainWindow):
             for element in target_state.elements:
                 if element.__class__.__name__ == "LKStateAddAnimation":
                     self.applyAnimationsToPreview(element)
-                    
+        
+        # Copy applied animations to MainWindow.animations for toggling
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
+
     def previewTransition(self, layer_id, fromState, toState):
         layer = None
         if layer_id:
@@ -1782,20 +1856,22 @@ class MainWindow(QMainWindow):
                 if hasattr(element, "animations"):
                     for anim in element.animations:
                         self.applyTransitionAnimationToPreview(element.targetId, element.key, anim)
+        
+        # Copy applied transition animations to MainWindow.animations for toggling
+        if hasattr(self._applyAnimation, 'animations'):
+            self.animations = list(self._applyAnimation.animations)
 
     # pause and play section
     def toggleAnimations(self):
-        if not hasattr(self, 'animations_playing'):
-            self.animations_playing = False
-            
-        self.animations_playing = not self.animations_playing
-            
+        # Toggle animation playing state
+        self.animations_playing = not getattr(self, 'animations_playing', False)
+        # Update Play/Pause icon
         if self.animations_playing:
             if self.isDarkMode:
                 self.playButton.setIcon(self.pauseIconWhite)
             else:
                 self.playButton.setIcon(self.pauseIcon)
-                
+            # Start or resume all animations
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     if anim.state() == QVariantAnimation.State.Stopped:
@@ -1808,11 +1884,11 @@ class MainWindow(QMainWindow):
                     else:
                         anim.resume()
         else:
+            # Pause animations and update icon
             if self.isDarkMode:
                 self.playButton.setIcon(self.playIconWhite)
             else:
                 self.playButton.setIcon(self.playIcon)
-                
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     anim.pause()
@@ -1839,12 +1915,49 @@ class MainWindow(QMainWindow):
 
     def setupShortcuts(self):
         settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
+        settings_shortcut.setContext(Qt.ApplicationShortcut)
         settings_shortcut.activated.connect(self.showSettingsDialog)
         
         if self.isMacOS:
             alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
+            alt_settings_shortcut.setContext(Qt.ApplicationShortcut)
             alt_settings_shortcut.activated.connect(self.showSettingsDialog)
-    
+        # Save file shortcuts
+        seq = self.config_manager.get_export_shortcut()
+        export_shortcut = QShortcut(QKeySequence(seq), self)
+        export_shortcut.setContext(Qt.ApplicationShortcut)
+        export_shortcut.activated.connect(self.exportFile)
+        self.export_shortcut = export_shortcut
+        if self.isMacOS:
+            meta_seq = seq.replace('Ctrl', 'Meta')
+            export_shortcut_mac = QShortcut(QKeySequence(meta_seq), self)
+            export_shortcut_mac.setContext(Qt.ApplicationShortcut)
+            export_shortcut_mac.activated.connect(self.exportFile)
+            self.export_shortcut_mac = export_shortcut_mac
+        # Zoom in/out shortcuts
+        zi_seq = self.config_manager.get_zoom_in_shortcut()
+        zoom_in_sc = QShortcut(QKeySequence(zi_seq), self)
+        zoom_in_sc.setContext(Qt.ApplicationShortcut)
+        zoom_in_sc.activated.connect(self.zoomIn)
+        self.zoom_in_sc = zoom_in_sc
+        if self.isMacOS:
+            mac_zi = zi_seq.replace('Ctrl', 'Meta')
+            zoom_in_sc_mac = QShortcut(QKeySequence(mac_zi), self)
+            zoom_in_sc_mac.setContext(Qt.ApplicationShortcut)
+            zoom_in_sc_mac.activated.connect(self.zoomIn)
+            self.zoom_in_sc_mac = zoom_in_sc_mac
+        zo_seq = self.config_manager.get_zoom_out_shortcut()
+        zoom_out_sc = QShortcut(QKeySequence(zo_seq), self)
+        zoom_out_sc.setContext(Qt.ApplicationShortcut)
+        zoom_out_sc.activated.connect(self.zoomOut)
+        self.zoom_out_sc = zoom_out_sc
+        if self.isMacOS:
+            mac_zo = zo_seq.replace('Ctrl', 'Meta')
+            zoom_out_sc_mac = QShortcut(QKeySequence(mac_zo), self)
+            zoom_out_sc_mac.setContext(Qt.ApplicationShortcut)
+            zoom_out_sc_mac.activated.connect(self.zoomOut)
+            self.zoom_out_sc_mac = zoom_out_sc_mac
+
     # settings section
     def showSettingsDialog(self):
         dialog = SettingsDialog(self, self.config_manager)
@@ -1902,9 +2015,230 @@ class MainWindow(QMainWindow):
             self.config_manager.save_window_geometry(size, position, False)
 
     def closeEvent(self, event):
+        if getattr(self, 'isDirty', False):
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Unsaved Changes")
+            msg.setText("You have unsaved changes. Are you sure you want to discard them and exit?")
+            pix = QPixmap(":/assets/openposter.png")
+            msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg.setDefaultButton(QMessageBox.No)
+            reply = msg.exec()
+            if reply != QMessageBox.Yes:
+                event.ignore()
+                return
         self.saveSplitterSizes()
-        self.saveWindowGeometry() 
+        self.saveWindowGeometry()
         super().closeEvent(event)
 
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
+    def exportFile(self):
+        if not hasattr(self, 'cafilepath') or not self.cafilepath or not hasattr(self, 'cafile') or not self.cafile:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Export Error")
+            msg.setText("No file is currently open. Please open a .ca file first.")
+            pix = QPixmap(":/assets/openposter.png")
+            msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            msg.exec()
+            return
+        dialog = ExportOptionsDialog(self)
+        if dialog.exec() != QDialog.Accepted or not dialog.choice:
+            return
+        choice = dialog.choice
+        if choice == 'copy':
+            path, _ = QFileDialog.getSaveFileName(self, "Save As", self.cafilepath, "Core Animation Bundle (*.ca)")
+            if not path:
+                return
+            dest, name = os.path.split(path)
+            self.cafile.write_file(name, dest)
+            self.cafilepath = path
+            self.ui.filename.setText(path)
+            self.statusBar().showMessage(f"Saved As {path}", 3000)
+            self.isDirty = False # Mark clean after successful save
+            
+        elif choice == 'tendies':
+            path, _ = QFileDialog.getSaveFileName(self, "Save as .tendies", self.cafilepath, "Tendies Bundle (*.tendies)")
+            if not path:
+                return
+            
+            # Ensure the path ends with .tendies
+            if not path.lower().endswith('.tendies'):
+                path += '.tendies'
+
+            temp_dir = tempfile.mkdtemp()
+            try:
+                self._create_tendies_structure(temp_dir, self.cafilepath)
+
+                shutil.make_archive(path[:-len('.tendies')], 'zip', root_dir=temp_dir)
+                
+                os.rename(path[:-len('.tendies')] + '.zip', path)
+
+            except Exception as e:
+                 QMessageBox.critical(self, "Export Error", f"Failed to create .tendies file: {e}")
+            finally:
+                shutil.rmtree(temp_dir) # Clean up temp directory
+
+        elif choice == 'nugget':
+            temp_dir = tempfile.mkdtemp()
+            try:
+                self._create_tendies_structure(temp_dir, self.cafilepath)
+
+                export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
+                os.makedirs(export_dir, exist_ok=True)
+                base_name = os.path.splitext(os.path.basename(self.cafilepath))[0]
+                archive_base = os.path.join(export_dir, base_name)
+                zip_file = shutil.make_archive(archive_base, 'zip', root_dir=temp_dir)
+                tendies_path = archive_base + '.tendies'
+                os.rename(zip_file, tendies_path)
+                target = tendies_path
+
+                nugget_exec = self.config_manager.get_nugget_exec_path()
+                if not nugget_exec:
+                    QMessageBox.information(self, "Nugget Export", "Nugget executable path is not configured in settings.")
+                    return
+                if not os.path.exists(nugget_exec):
+                    QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
+                    return
+
+                # Asynchronous nugget execution
+                if nugget_exec.lower().endswith(".py"):
+                    program = sys.executable
+                    args = [nugget_exec, target]
+                elif nugget_exec.endswith(".app") and self.isMacOS:
+                    program = "open"
+                    args = [nugget_exec, "--args", target]
+                else:
+                    program = nugget_exec
+                    args = [target]
+
+                print("Running Nugget:", program, *args)
+                self._run_nugget_export(program, args)
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
+            finally:
+                shutil.rmtree(temp_dir)  # Clean up temp directory (incl. content and zip)
+        
+        # Removed self.isDirty = False from here as it's now handled per-case
+
+    def _create_tendies_structure(self, base_dir, ca_source_path):
+        """Creates the necessary directory structure for a .tendies bundle inside base_dir."""
+        try:
+            # Copy descriptors template
+            root = sys._MEIPASS if hasattr(sys, '_MEIPASS') else (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd())
+            descriptors_src = os.path.join(root, "descriptors")
+            if not os.path.exists(descriptors_src):
+                raise FileNotFoundError("descriptors template directory not found")
+                
+            descriptors_dest = os.path.join(base_dir, "descriptors")
+            shutil.copytree(descriptors_src, descriptors_dest, dirs_exist_ok=True)
+
+            # Find the EID directory (assuming only one)
+            eid = next((d for d in os.listdir(descriptors_dest) if os.path.isdir(os.path.join(descriptors_dest, d)) and not d.startswith('.')), None)
+            if not eid:
+                raise FileNotFoundError("Could not find EID directory within descriptors template")
+
+            # Define the path for the .wallpaper bundle
+            contents_dir = os.path.join(descriptors_dest, eid, "versions", "0", "contents")
+            wallpaper_dir = os.path.join(contents_dir, "OpenPoster.wallpaper")
+            os.makedirs(wallpaper_dir, exist_ok=True)
+
+            # Copy the .ca bundle content into the .wallpaper directory
+            if not os.path.exists(ca_source_path):
+                 raise FileNotFoundError(f".ca source path does not exist: {ca_source_path}")
+            ca_basename = os.path.basename(ca_source_path)
+            ca_dest_dir = os.path.join(wallpaper_dir, ca_basename)
+            shutil.copytree(ca_source_path, ca_dest_dir)
+            
+        except Exception as e:
+            print(f"Error creating tendies structure in {base_dir}: {e}")
+            raise # Re-raise the exception to be caught by the caller
+
+    def markDirty(self):
+        self.isDirty = True
+
+    def onItemMoved(self, item):
+        layer_id = item.data(0)
+        layer = self.cafile.rootlayer.findlayer(layer_id)
+        if layer:
+            pos = item.pos()
+            layer.position = [str(pos.x()), str(pos.y())]
+        self.markDirty()
+
+    def onTransformChanged(self, item, transform):
+        layer_id = item.data(0)
+        layer = self.cafile.rootlayer.findlayer(layer_id)
+        if layer:
+            s = f"{transform.m11():.6f} {transform.m12():.6f} {transform.m21():.6f} {transform.m22():.6f} {transform.m31():.6f} {transform.m32():.6f}"
+            layer.transform = s
+        self.markDirty()
+
+    def onInspectorChanged(self, item):
+        if item.column() != 1:
+            return
+        obj = getattr(self, 'currentInspectObject', None)
+        if obj is None:
+            return
+        key = self.ui.tableWidget.item(item.row(), 0).text()
+        val = item.text()
+        parts = key.lower().split()
+        xml_key = parts[0] + ''.join(p.capitalize() for p in parts[1:])
+        if not hasattr(obj, xml_key):
+            return
+        orig_val = getattr(obj, xml_key)
+        if isinstance(orig_val, list):
+            nums = re.findall(r'-?\d+\.?\d*', val)
+            setattr(obj, xml_key, nums)
+        else:
+            setattr(obj, xml_key, val)
+        self.markDirty()
+
+    def zoomIn(self):
+        self.ui.graphicsView.handleZoom(120)
+
+    def zoomOut(self):
+        self.ui.graphicsView.handleZoom(-120)
+
+    def keyPressEvent(self, event):
+        mods = event.modifiers()
+        if (mods & Qt.ControlModifier) or (self.isMacOS and (mods & Qt.MetaModifier)):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal, Qt.KeypadPlus):
+                self.zoomIn()
+                return
+            if event.key() in (Qt.Key_Minus, Qt.Key_Underscore, Qt.KeypadMinus):
+                self.zoomOut()
+                return
+        super(MainWindow, self).keyPressEvent(event)
+
+    # Run nugget export asynchronously using QProcess
+    def _run_nugget_export(self, program, args):
+        process = QtCore.QProcess(self)
+        process.setProgram(program)
+        process.setArguments(args)
+        process.finished.connect(self._on_nugget_finished)
+        process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
+        process.start()
+
+    # Handle completion of nugget export process
+    def _on_nugget_finished(self, exitCode, exitStatus):
+        process = self.sender()
+        stdout = bytes(process.readAllStandardOutput()).decode()
+        stderr = bytes(process.readAllStandardError()).decode()
+        if exitCode == 0:
+            self.statusBar().showMessage("Exported to Nugget successfully", 3000)
+            self.isDirty = False
+        else:
+            error_message = f"Nugget execution failed (exit code {exitCode}).\n"
+            if stdout:
+                error_message += f"stdout:\n{stdout}\n"
+            if stderr:
+                error_message += f"stderr:\n{stderr}"
+            print(error_message)
+            QMessageBox.critical(self, "Nugget Error", f"Nugget execution failed. Check console for details.\nError: {stderr or stdout or 'Unknown error'}")
+
+    # Clear the nugget-exports folder at each launch
+    def _clear_nugget_exports_cache(self):
+        export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
+        if os.path.exists(export_dir):
+            shutil.rmtree(export_dir)
+        os.makedirs(export_dir, exist_ok=True)

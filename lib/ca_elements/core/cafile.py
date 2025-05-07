@@ -51,4 +51,10 @@ class CAFile:
                     f.write(self.assets[asset])
                     f.close()
 
-        self.create().write(os.path.join(capath, self.index['rootDocument']))
+        # Build XML tree and sanitize None attribute values to avoid serialization errors
+        tree = self.create()
+        for elem in tree.iter():
+            for key, val in list(elem.attrib.items()):
+                if val is None:
+                    elem.attrib.pop(key)
+        tree.write(os.path.join(capath, self.index['rootDocument']))

@@ -15,6 +15,9 @@ args.extend([
     '--collect-data=icons',
 ])
 
+sep = ';' if platform == 'win32' else ':'
+args.append(f"--add-data=descriptors{sep}descriptors")
+
 # for some stupid reason it couldn't find pyside6 for me - anh
 hacks = [
     '--hidden-import=PySide6.QtCore',
