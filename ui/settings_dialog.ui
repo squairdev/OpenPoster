@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsDialog</class>
+ <widget class="QDialog" name="SettingsDialog">
+  <property name="windowTitle">
+   <string>Settings</string>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <layout class="QHBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="uiTab">
+      <attribute name="title">
+       <string>UI</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="uiTabLayout">
+       <property name="alignment">
+        <set>Qt::AlignTop</set>
+       </property>
+       <item>
+        <layout class="QHBoxLayout" name="rememberRowLayout">
+         <item>
+          <widget class="QLabel" name="rememberLabel">
+           <property name="text">
+            <string>Remember window size and position</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="rememberSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="rememberWindowCheckbox"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="resetPanelsRowLayout">
+         <item>
+          <widget class="QLabel" name="resetPanelsLabel">
+           <property name="text">
+            <string>Reset panels to default sizes</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="resetPanelsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="resetPanelsButton">
+           <property name="text">
+            <string>Click here to reset all panels</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="nuggetTab">
+      <attribute name="title">
+       <string>Nugget</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="nuggetTabLayout">
+       <property name="alignment">
+        <set>Qt::AlignTop</set>
+       </property>
+       <item>
+        <layout class="QHBoxLayout" name="nuggetPathRowLayout">
+         <item>
+          <widget class="QLabel" name="nuggetLabel">
+           <property name="text">
+            <string>Nugget Executable:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="nuggetPathLineEdit"/>
+         </item>
+         <item>
+          <widget class="QPushButton" name="nuggetBrowseButton">
+           <property name="text">
+            <string>Browse</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="shortcutsTab">
+      <attribute name="title">
+       <string>Shortcuts</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="shortcutsTabLayout">
+       <property name="alignment">
+        <set>Qt::AlignTop</set>
+       </property>
+       <item>
+        <layout class="QHBoxLayout" name="exportShortcutRowLayout">
+         <item>
+          <widget class="QLabel" name="exportShortcutLabel">
+           <property name="text">
+            <string>Export Shortcut:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QKeySequenceEdit" name="exportKeySequenceEdit">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="exportShortcutResetButton">
+           <property name="text">
+            <string>Reset</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="zoomInShortcutRowLayout">
+         <item>
+          <widget class="QLabel" name="zoomInShortcutLabel">
+           <property name="text">
+            <string>Zoom In Shortcut:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QKeySequenceEdit" name="zoomInKeySequenceEdit">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="zoomInShortcutResetButton">
+           <property name="text">
+            <string>Reset</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="zoomOutShortcutRowLayout">
+         <item>
+          <widget class="QLabel" name="zoomOutShortcutLabel">
+           <property name="text">
+            <string>Zoom Out Shortcut:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QKeySequenceEdit" name="zoomOutKeySequenceEdit">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="zoomOutShortcutResetButton">
+           <property name="text">
+            <string>Reset</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="closeWindowShortcutRowLayout">
+         <item>
+          <widget class="QLabel" name="closeWindowShortcutLabel">
+           <property name="text">
+            <string>Close Window Shortcut:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QKeySequenceEdit" name="closeWindowKeySequenceEdit">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="closeWindowShortcutResetButton">
+           <property name="text">
+            <string>Reset</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QPushButton" name="resetAllShortcutsButton">
+         <property name="text">
+          <string>Reset All Shortcuts</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="languagesTab">
+      <attribute name="title">
+       <string>Languages</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="languagesTabLayout">
+       <item>
+        <widget class="QListWidget" name="languageListWidget"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="languageAiTranslationLabel">
+         <property name="text">
+          <string>Chinese, French, Italian, Japanese, Korean, and Thai translations by AI (Gemini 2.5 Pro).</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="aboutTab">
+      <attribute name="title">
+       <string>About</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="aboutTabLayout">
+       <property name="leftMargin">
+        <number>20</number>
+       </property>
+       <property name="topMargin">
+        <number>40</number>
+       </property>
+       <property name="rightMargin">
+        <number>20</number>
+       </property>
+       <property name="bottomMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="titleLabel">
+         <property name="text">
+          <string>&lt;h2&gt;OpenPoster Beta&lt;/h2&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="versionLabel">
+         <property name="text">
+          <string>Version: v{__version__}</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="guiLabel">
+         <property name="text">
+          <string>GUI: PySide6</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="creditsLabel">
+         <property name="text">
+          <string notr="true">&lt;b&gt;Contributors:&lt;/b&gt;
+        &lt;ul&gt;
+        &lt;li&gt;retronbv - Owner, Manages libraries&lt;/li&gt;
+        &lt;li&gt;enkei64 - GUI, Features developer&lt;/li&gt;
+        &lt;li&gt;ItMe12s - QoL additions, features suggestions&lt;/li&gt;
+        &lt;li&gt;AnhNguyenlost13 - Building/Compiling&lt;/li&gt;
+        &lt;li&gt;LeminLimez - Signing and Nugget support&lt;/li&gt;
+        &lt;li&gt;SuperEVILFACE - CAAnimation Class&lt;/li&gt;
+        &lt;/ul&gt;</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::RichText</enum>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="websiteLabel">
+         <property name="text">
+          <string>&lt;a href=&quot;https://openposter.pages.dev&quot;&gt;openposter.pages.dev&lt;/a&gt;</string>
+         </property>
+         <property name="openExternalLinks">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="licenseLabel">
+         <property name="text">
+          <string>&lt;a href=&quot;https://github.com/openposter/OpenPoster/blob/main/LICENSE&quot;&gt;MIT License&lt;/a&gt;</string>
+         </property>
+         <property name="openExternalLinks">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="discordButton">
+         <property name="text">
+          <string>  Join Discord</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>24</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+            <string>padding-left: 8px;</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../resources.qrc"/>
+ </resources>
+ <connections/>
+</ui> 

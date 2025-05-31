@@ -1,11 +1,17 @@
+import sys
 from PySide6.QtGui import QImage, QPixmap
 import os
 
 class Assets:
     def __init__(self):
-        # overide later
         self.cafilepath = ""
-        self.cachedImages = ""
+        self.cachedImages = {}
+        self.missing_assets = set()
+
+        if hasattr(sys, '_MEIPASS'):
+            self.app_base_path = sys._MEIPASS
+        else:
+            self.app_base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
     def loadImage(self, src_path):
         if not src_path:
@@ -14,8 +20,6 @@ class Assets:
         if src_path in self.cachedImages:
             return self.cachedImages[src_path]
         
-        # from formating
-        self.cafilepath = self.cafilepath
         asset_path = self.findAssetPath(src_path)
 
         if not asset_path or not os.path.exists(asset_path):
@@ -45,6 +49,21 @@ class Assets:
         if not src_path:
             return None
         
+        if src_path.startswith("themes/") or src_path.startswith("icons/") or src_path.startswith("assets/"):
+            app_level_path = os.path.join(self.app_base_path, src_path)
+            if os.path.exists(app_level_path):
+                return app_level_path
+            
+            bundled_assets_path = os.path.join(self.app_base_path, "assets", src_path)
+            if os.path.exists(bundled_assets_path):
+                 return bundled_assets_path
+
+            if src_path.startswith(":/"):
+                 return src_path
+            
+        if not self.cafilepath:
+            return None
+            
         try:
             import urllib.parse
             decoded_path = urllib.parse.unquote(src_path)

@@ -3,9 +3,9 @@ import os
 import math
 from lib.ca_elements.core.cafile import CAFile
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination
+from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
@@ -30,7 +30,7 @@ from .exportoptions_window import ExportOptionsDialog
 
 class MainWindow(QMainWindow):
     def __init__(self, config_manager, translator):
-        super(MainWindow, self).__init__()
+        super().__init__()
         self.scene: CheckerboardGraphicsScene = None
 
         # config manager
@@ -39,6 +39,11 @@ class MainWindow(QMainWindow):
         self.translator = translator
         # Clear nugget-exports cache on startup
         self._clear_nugget_exports_cache()
+
+        self.animations_playing = False # Initialize animations_playing earlier
+        self.animations = [] # Initialize animations list earlier
+        self.shortcuts_list = [] # Initialize list to store shortcuts
+        self.theme_change_callbacks = [] # For notifying dialogs of theme changes
 
         # app resources then load
         self.bindOperationFunctions()
@@ -58,14 +63,11 @@ class MainWindow(QMainWindow):
         # Restore window geometry
         self.loadWindowGeometry()
         
-        self.animations_playing = False
-        self.animations = []
-        
         # set up keyboard shortcuts
         self.setupShortcuts()
         self.isDirty = False
         
-        print(f"OpenPoster v{__version__} started")
+        # print(f"OpenPoster v{__version__} started") # Commented out startup message
 
     # app resources
     def bindOperationFunctions(self):
@@ -103,52 +105,58 @@ class MainWindow(QMainWindow):
         self.exportIconWhite = QIcon(":/icons/export-white.svg")
         self.isDarkMode = False
     
+    def updateButtonIcons(self):
+        if not hasattr(self, 'ui'):
+            return
+
+        if hasattr(self.ui, 'editButton'):
+            self.ui.editButton.setIcon(self.editIconWhite if self.isDarkMode else self.editIcon)
+        
+        if hasattr(self.ui, 'playButton'):
+            if self.animations_playing: # Currently playing, show PAUSE icon (two vertical lines)
+                self.ui.playButton.setIcon(self.pauseIconWhite if self.isDarkMode else self.pauseIcon)
+                self.ui.playButton.setToolTip("Playing (Click to Pause)")
+            else: # Currently not playing, show PLAY icon (triangle)
+                self.ui.playButton.setIcon(self.playIconWhite if self.isDarkMode else self.playIcon)
+                self.ui.playButton.setToolTip("Paused/Stopped (Click to Play)")
+
+        if hasattr(self.ui, 'settingsButton'):
+            self.ui.settingsButton.setIcon(self.settingsIconWhite if self.isDarkMode else self.settingsIcon)
+        
+        # discordButton is likely in a different part of the UI (e.g. settings dialog)
+        # but if it were on the main window UI:
+        # if hasattr(self.ui, 'discordButton'):
+        #     self.ui.discordButton.setIcon(self.discordIconWhite if self.isDarkMode else self.discordIcon)
+            
+        if hasattr(self.ui, 'exportButton'):
+            self.ui.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
+
     # themes section
     def detectDarkMode(self):
-        previous = getattr(self, 'isDarkMode', False)
-        new_dark = False
+        previous_dark_mode_state = getattr(self, 'isDarkMode', False)
+        new_dark_mode_detected = False
         if platform.system() == 'Windows':
             try:
                 import winreg
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize')
                 val = winreg.QueryValueEx(key, 'AppsUseLightTheme')[0]
-                new_dark = (val == 0)
+                new_dark_mode_detected = (val == 0)
             except:
-                new_dark = False
+                new_dark_mode_detected = False
         else:
             try:
                 app = QApplication.instance()
                 if app:
                     text = app.palette().color(QPalette.Active, QPalette.WindowText)
-                    new_dark = (text.lightness() > 128)
+                    new_dark_mode_detected = (text.lightness() > 128)
             except:
-                new_dark = False
-        self.isDarkMode = new_dark
-        if hasattr(self, 'ui') and previous != self.isDarkMode:
+                new_dark_mode_detected = False
+        self.isDarkMode = new_dark_mode_detected
+        if hasattr(self, 'ui') and previous_dark_mode_state != self.isDarkMode:
             if self.isDarkMode:
                 self.applyDarkModeStyles()
-                if hasattr(self, 'editButton'):
-                    self.editButton.setIcon(self.editIconWhite)
-                if hasattr(self, 'playButton'):
-                    self.playButton.setIcon(self.pauseIconWhite if self.animations_playing else self.playIconWhite)
-                if hasattr(self, 'settingsButton'):
-                    self.settingsButton.setIcon(self.settingsIconWhite)
-                if hasattr(self, 'discordButton'):
-                    self.discordButton.setIcon(self.discordIconWhite)
-                if hasattr(self, 'exportButton'):
-                    self.exportButton.setIcon(self.exportIconWhite)
             else:
                 self.applyLightModeStyles()
-                if hasattr(self, 'editButton'):
-                    self.editButton.setIcon(self.editIcon)
-                if hasattr(self, 'playButton'):
-                    self.playButton.setIcon(self.pauseIcon if self.animations_playing else self.playIcon)
-                if hasattr(self, 'settingsButton'):
-                    self.settingsButton.setIcon(self.settingsIcon)
-                if hasattr(self, 'discordButton'):
-                    self.discordButton.setIcon(self.discordIcon)
-                if hasattr(self, 'exportButton'):
-                    self.exportButton.setIcon(self.exportIcon)
             self.updateCategoryHeaders()
     
     def updateCategoryHeaders(self):
@@ -203,87 +211,77 @@ class MainWindow(QMainWindow):
             
     def updateAppearanceForMac(self):
         previous_dark_mode = self.isDarkMode
-        self.isDarkMode = False
+        # self.isDarkMode = False # Let's not reset it here, detect and then compare
         
+        current_system_is_dark = False
         try:
             from Foundation import NSUserDefaults # type: ignore
             appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
-            self.isDarkMode = appleInterfaceStyle == "Dark"
-        except:
+            current_system_is_dark = appleInterfaceStyle == "Dark"
+            # print(f"[updateAppearanceForMac] AppleInterfaceStyle: {appleInterfaceStyle}, current_system_is_dark: {current_system_is_dark}")
+        except Exception as e:
+            # print(f"[updateAppearanceForMac] Error getting AppleInterfaceStyle: {e}. Falling back.")
             app = QApplication.instance()
             if app:
                 windowText = app.palette().color(QPalette.Active, QPalette.WindowText)
-                self.isDarkMode = windowText.lightness() > 128
-        
-        if self.isDarkMode:
-            self.applyDarkModeStyles()
-            if hasattr(self, 'editButton'):
-                self.editButton.setIcon(self.editIconWhite)
-            if hasattr(self, 'playButton'):
-                if self.animations_playing:
-                    self.playButton.setIcon(self.pauseIconWhite)
+                current_system_is_dark = windowText.lightness() > 128
+                # print(f"[updateAppearanceForMac] Fallback detection: lightness > 128 is {current_system_is_dark}")
+
+        print(f"[updateAppearanceForMac] Detected system dark mode: {current_system_is_dark}. Previous MainWindow.isDarkMode: {previous_dark_mode}")
+
+        if self.isDarkMode == current_system_is_dark and previous_dark_mode == current_system_is_dark:
+             # print("[updateAppearanceForMac] No change in effective theme or system theme. MainWindow.isDarkMode already aligned.")
+             # Still, ensure styles are applied if UI isn't fully constructed yet or needs refresh
+             if hasattr(self, 'ui'):
+                if self.isDarkMode:
+                    self.applyDarkModeStyles()
                 else:
-                    self.playButton.setIcon(self.playIconWhite)
-            if hasattr(self, 'settingsButton'):
-                self.settingsButton.setIcon(self.settingsIconWhite)
-            if hasattr(self, 'discordButton'):
-                self.discordButton.setIcon(self.discordIconWhite)
-            if hasattr(self, 'exportButton'):
-                self.exportButton.setIcon(self.exportIconWhite)
-        else:
-            self.applyLightModeStyles()
-            if hasattr(self, 'editButton'):
-                self.editButton.setIcon(self.editIcon)
-            if hasattr(self, 'playButton'):
-                if self.animations_playing:
-                    self.playButton.setIcon(self.pauseIcon)
-                else:
-                    self.playButton.setIcon(self.playIcon)
-            if hasattr(self, 'settingsButton'):
-                self.settingsButton.setIcon(self.settingsIcon)
-            if hasattr(self, 'discordButton'):
-                self.discordButton.setIcon(self.discordIcon)
-            if hasattr(self, 'exportButton'):
-                self.exportButton.setIcon(self.exportIcon)
+                    self.applyLightModeStyles()
+             # No need to call callbacks if no effective change from previous state
+             return
+
+        self.isDarkMode = current_system_is_dark # Update MainWindow state
+        print(f"[updateAppearanceForMac] MainWindow.isDarkMode is NOW: {self.isDarkMode}")
         
+        if hasattr(self, 'ui'): 
+            if self.isDarkMode:
+                # print("[updateAppearanceForMac] Applying Dark Mode Styles")
+                self.applyDarkModeStyles()
+            else:
+                # print("[updateAppearanceForMac] Applying Light Mode Styles")
+                self.applyLightModeStyles()
+        
+        # Only call updateCategoryHeaders and callbacks if the effective theme of the window changed.
         if previous_dark_mode != self.isDarkMode:
-            self.updateCategoryHeaders()
-    
+            print(f"[updateAppearanceForMac] Effective theme changed from {previous_dark_mode} to {self.isDarkMode}. Updating headers and notifying callbacks.")
+            self.updateCategoryHeaders() 
+            for callback in self.theme_change_callbacks:
+                callback(self.isDarkMode)
+        else:
+            print(f"[updateAppearanceForMac] System theme might have changed to {current_system_is_dark}, but MainWindow.isDarkMode ({self.isDarkMode}) was already effectively this state. No callback spam.")
+
     def applyDarkModeStyles(self):
+        if not hasattr(self, 'ui'): return
+
+        # Apply main dark stylesheet
+        try:
+            qss_path = self.findAssetPath("themes/dark_style.qss")
+            print(f"[MainWindow.applyDarkModeStyles] QSS path from findAssetPath: {qss_path}")
+            with open(qss_path, "r") as f:
+                self.ui.centralwidget.setStyleSheet(f.read())
+        except Exception as e:
+            print(f"Error applying dark_style.qss: {e}")
+
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
             scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
             scene.update()
             
-        if hasattr(self, 'playButton'):
-            self.playButton.setStyleSheet("""
-                QPushButton { 
-                    border: none; 
-                    background-color: transparent;
-                    color: rgba(255, 255, 255, 150);
-                }
-                QPushButton:hover { 
-                    background-color: rgba(128, 128, 128, 50);
-                    border-radius: 20px;
-                }
-            """)
+        if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): # Check self.ui
+            self.ui.playButton.setStyleSheet("color: rgba(255, 255, 255, 150);") # Only set color
             
-        if hasattr(self, 'editButton'):
-            self.editButton.setStyleSheet("""
-                QPushButton { 
-                    border: none; 
-                    background-color: transparent;
-                    color: rgba(255, 255, 255, 150);
-                }
-                QPushButton:hover { 
-                    background-color: rgba(128, 128, 128, 50);
-                    border-radius: 20px;
-                }
-                QPushButton:checked {
-                    background-color: rgba(0, 120, 215, 50);
-                    border-radius: 20px;
-                }
-            """)
+        if hasattr(self, 'ui') and hasattr(self.ui, 'editButton'): # Check self.ui
+            self.ui.editButton.setStyleSheet("color: rgba(255, 255, 255, 150);") # Only set color
             
         self.ui.tableWidget.setStyleSheet("""
             QTableWidget {
@@ -307,50 +305,96 @@ class MainWindow(QMainWindow):
         
         self.ui.tableWidget.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
+                background-color: palette(button); /* Adapts to QSS */
+                color: palette(text); /* Adapts to QSS */
                 padding: 8px;
                 border: none;
-                border-right: 1px solid rgba(180, 180, 180, 60);
+                border-right: 1px solid rgba(180, 180, 180, 60); /* Might need adjustment based on QSS */
                 border-bottom: none;
             }
         """)
-    
+
+        # Style for QTreeWidget headers
+        tree_header_style = """
+            QHeaderView::section {
+                background-color: palette(button);
+                color: palette(text);
+                padding: 4px;
+                border: none;
+                border-bottom: 1px solid palette(midlight);
+                border-right: 1px solid palette(midlight);
+            }
+            QHeaderView::section:first {
+                border-left: none;
+            }
+        """
+        if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
+            self.ui.treeWidget.header().setStyleSheet(tree_header_style)
+        if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
+            self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
+
+        self.updateButtonIcons() 
+        self.updateCategoryHeaders() 
+        self.ui.retranslateUi(self)
+
+        # Explicitly style problematic UI elements for dark mode
+        dark_border_color = "#606060"  # Mid-grey border
+        dark_button_bg_color = "#3A3A3A"
+        dark_button_hover_bg_color = "#4A4A4A"
+        dark_button_pressed_bg_color = "#5A5A5A"
+        dark_button_text_color = "#D0D0D0" # Light grey text for buttons
+        dark_general_text_color = "#B0B0B0" # Softer light grey for general labels
+
+        button_style_dark = (
+            f"QPushButton {{ "
+            f"border: 1px solid {dark_border_color}; "
+            f"border-radius: 6px; "
+            f"padding: 5px 10px; "
+            f"background-color: {dark_button_bg_color}; "
+            f"color: {dark_button_text_color}; "
+            f"}} "
+            f"QPushButton:hover {{ background-color: {dark_button_hover_bg_color}; }} "
+            f"QPushButton:pressed {{ background-color: {dark_button_pressed_bg_color}; }}"
+        )
+        if hasattr(self.ui, 'openFile'): self.ui.openFile.setStyleSheet(button_style_dark);
+        if hasattr(self.ui, 'exportButton'): self.ui.exportButton.setStyleSheet(button_style_dark);
+        
+        if hasattr(self.ui, 'filename'):
+            font_style_filename = "italic" if self.ui.filename.text() == "No File Open" else "normal"
+            filename_style_dark = (
+                f"font-style: {font_style_filename}; "
+                f"color: {dark_button_text_color}; " # Use button text color for prominence
+                f"border: 1.5px solid {dark_border_color}; "
+                f"border-radius: 8px; "
+                f"padding: 5px 10px;"
+            )
+            self.ui.filename.setStyleSheet(filename_style_dark)
+
+        if hasattr(self.ui, 'layersLabel'): self.ui.layersLabel.setStyleSheet(f"color: {dark_general_text_color};");
+        if hasattr(self.ui, 'statesLabel'): self.ui.statesLabel.setStyleSheet(f"color: {dark_general_text_color};");
+        if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {dark_general_text_color};");
+        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {dark_general_text_color};");
+
     def applyLightModeStyles(self):
+        if not hasattr(self, 'ui'): return
+
+        try:
+            qss_path = self.findAssetPath("themes/light_style.qss")
+            with open(qss_path, "r") as f:
+                self.ui.centralwidget.setStyleSheet(f.read())
+        except Exception as e:
+            print(f"Error applying light_style.qss: {e}")
+
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
             scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
             scene.update()
             
-        if hasattr(self, 'playButton'):
-            self.playButton.setStyleSheet("""
-                QPushButton { 
-                    border: none; 
-                    background-color: transparent;
-                    color: rgba(0, 0, 0, 150);
-                }
-                QPushButton:hover { 
-                    background-color: rgba(128, 128, 128, 30);
-                    border-radius: 20px;
-                }
-            """)
+        if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): 
+            self.ui.playButton.setStyleSheet("color: rgba(0, 0, 0, 150);") 
             
-        if hasattr(self, 'editButton'):
-            self.editButton.setStyleSheet("""
-                QPushButton { 
-                    border: none; 
-                    background-color: transparent;
-                    color: rgba(0, 0, 0, 150);
-                }
-                QPushButton:hover { 
-                    background-color: rgba(128, 128, 128, 30);
-                    border-radius: 20px;
-                }
-                QPushButton:checked {
-                    background-color: rgba(0, 120, 215, 50);
-                    border-radius: 20px;
-                }
-            """)
+        if hasattr(self, 'ui') and hasattr(self.ui, 'editButton'): 
+            self.ui.editButton.setStyleSheet("color: rgba(0, 0, 0, 150);") 
             
         self.ui.tableWidget.setStyleSheet("""
             QTableWidget {
@@ -374,167 +418,98 @@ class MainWindow(QMainWindow):
         
         self.ui.tableWidget.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
+                background-color: palette(button); /* Adapts to QSS */
+                color: palette(text); /* Adapts to QSS */
                 padding: 8px;
                 border: none;
-                border-right: 1px solid rgba(120, 120, 120, 60);
+                border-right: 1px solid rgba(120, 120, 120, 60); /* Might need adjustment based on QSS */
                 border-bottom: none;
             }
         """)
 
+        # Style for QTreeWidget headers (same as dark for now, relies on palette)
+        tree_header_style = """
+            QHeaderView::section {
+                background-color: palette(button);
+                color: palette(text);
+                padding: 4px;
+                border: none;
+                border-bottom: 1px solid palette(midlight);
+                border-right: 1px solid palette(midlight);
+            }
+            QHeaderView::section:first {
+                border-left: none;
+            }
+        """
+        if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
+            self.ui.treeWidget.header().setStyleSheet(tree_header_style)
+        if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
+            self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
+
+        self.updateButtonIcons() 
+        self.updateCategoryHeaders() 
+        self.ui.retranslateUi(self)
+
+        # Explicitly style problematic UI elements for light mode
+        light_border_color = "#A0A0A0"  # Mid-light grey border
+        light_button_bg_color = "#F0F0F0"
+        light_button_hover_bg_color = "#E0E0E0"
+        light_button_pressed_bg_color = "#D0D0D0"
+        light_button_text_color = "#303030" # Dark grey text for buttons
+        light_general_text_color = "#505050" # Softer dark grey for general labels
+
+        button_style_light = (
+            f"QPushButton {{ "
+            f"border: 1px solid {light_border_color}; "
+            f"border-radius: 6px; "
+            f"padding: 5px 10px; "
+            f"background-color: {light_button_bg_color}; "
+            f"color: {light_button_text_color}; "
+            f"}} "
+            f"QPushButton:hover {{ background-color: {light_button_hover_bg_color}; }} "
+            f"QPushButton:pressed {{ background-color: {light_button_pressed_bg_color}; }}"
+        )
+        if hasattr(self.ui, 'openFile'): self.ui.openFile.setStyleSheet(button_style_light);
+        if hasattr(self.ui, 'exportButton'): self.ui.exportButton.setStyleSheet(button_style_light);
+
+        if hasattr(self.ui, 'filename'):
+            font_style_filename = "italic" if self.ui.filename.text() == "No File Open" else "normal"
+            text_color_filename_light = "#666666" if font_style_filename == "italic" else light_button_text_color # Keep specific color for "No File Open"
+            filename_style_light = (
+                f"font-style: {font_style_filename}; "
+                f"color: {text_color_filename_light}; "
+                f"border: 1.5px solid {light_border_color}; "
+                f"border-radius: 8px; "
+                f"padding: 5px 10px;"
+            )
+            self.ui.filename.setStyleSheet(filename_style_light)
+
+        if hasattr(self.ui, 'layersLabel'): self.ui.layersLabel.setStyleSheet(f"color: {light_general_text_color};");
+        if hasattr(self.ui, 'statesLabel'): self.ui.statesLabel.setStyleSheet(f"color: {light_general_text_color};");
+        if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {light_general_text_color};");
+        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {light_general_text_color};");
+
     # gui loader section
     def initUI(self):
+        # Connect signals and set dynamic properties.
+        self.ui.editButton.setIcon(self.editIconWhite if self.isDarkMode else self.editIcon)
+        self.ui.editButton.clicked.connect(self.toggleEditMode)
         
-        if not hasattr(self.ui, 'previewLabel'):
-            self.ui.previewLabel = QLabel(self.ui.previewWidget)
-            self.ui.previewLabel.setObjectName("previewLabel")
-            self.ui.previewLabel.setText("Preview")
+        self.ui.playButton.setIcon(self.playIconWhite if self.isDarkMode else self.playIcon) 
+        self.ui.playButton.clicked.connect(self.toggleAnimations)
         
-        self.previewHeaderLayout = QHBoxLayout()
-        self.previewHeaderLayout.setContentsMargins(0, 0, 0, 0)
-        self.previewHeaderLayout.setSpacing(10)
+        self.ui.settingsButton.setIcon(self.settingsIconWhite if self.isDarkMode else self.settingsIcon)
+        self.ui.settingsButton.clicked.connect(self.showSettingsDialog)
         
-        self.ui.previewLabel.setStyleSheet("font-size: 14px; padding: 5px;")
-        self.previewHeaderLayout.addWidget(self.ui.previewLabel)
-        
-        self.previewHeaderLayout.addStretch()
-        
-        self.editButton = QPushButton(self.ui.previewWidget)
-        self.editButton.setObjectName("editButton")
-        self.editButton.setIcon(self.editIconWhite if self.isDarkMode else self.editIcon)
-        self.editButton.setToolTip("Toggle Edit Mode")
-        self.editButton.setFixedSize(40, 40)
-        self.editButton.setIconSize(QSize(24, 24))
-        self.editButton.setCheckable(True)
-        self.editButton.setStyleSheet("""
-            QPushButton { 
-                border: none; 
-                background-color: transparent;
-                color: rgba(0, 0, 0, 150);
-            }
-            QPushButton:hover { 
-                background-color: rgba(128, 128, 128, 30);
-                border-radius: 20px;
-            }
-            QPushButton:checked {
-                background-color: rgba(0, 120, 215, 50);
-                border-radius: 20px;
-            }
-        """)
-        self.editButton.clicked.connect(self.toggleEditMode)
-        self.previewHeaderLayout.addWidget(self.editButton)
-        
-        self.playButton = QPushButton(self.ui.previewWidget)
-        self.playButton.setObjectName("playButton")
-        self.playButton.setIcon(self.playIconWhite if self.isDarkMode else self.playIcon)
-        self.playButton.setToolTip("Play/Pause Animations")
-        self.playButton.setFixedSize(40, 40)
-        self.playButton.setIconSize(QSize(32, 32))
-        self.playButton.setStyleSheet("""
-            QPushButton { 
-                border: none; 
-                background-color: transparent;
-                color: rgba(255, 255, 255, 150);
-            }
-            QPushButton:hover { 
-                background-color: rgba(128, 128, 128, 50);
-                border-radius: 20px;
-            }
-        """)
-        self.playButton.clicked.connect(self.toggleAnimations)
-        self.previewHeaderLayout.addWidget(self.playButton)
-        
-        self.ui.previewLayout.removeWidget(self.ui.previewLabel)
-        self.ui.previewLayout.insertLayout(0, self.previewHeaderLayout)
-        
-        self.settingsButton = QPushButton(self.ui.headerWidget)
-        self.settingsButton.setObjectName("settingsButton")
-        self.settingsButton.setIcon(self.settingsIconWhite if self.isDarkMode else self.settingsIcon)
-        self.settingsButton.setToolTip("Settings")
-        self.settingsButton.setFixedSize(40, 40)
-        self.settingsButton.setIconSize(QSize(24, 24))
-        self.settingsButton.setStyleSheet("""
-            QPushButton { 
-                border: none; 
-                background-color: transparent;
-            }
-            QPushButton:hover { 
-                background-color: rgba(128, 128, 128, 30);
-                border-radius: 20px;
-            }
-        """)
-        self.settingsButton.clicked.connect(self.showSettingsDialog)
-        
-        # Create export button
-        self.exportButton = QPushButton(self.ui.headerWidget)
-        self.exportButton.setObjectName("exportButton")
-        self.exportButton.setText("Export")
-        self.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
-        self.exportButton.setToolTip("Export")
-        self.exportButton.setFixedHeight(35)
-        self.exportButton.setIconSize(QSize(18, 18))
-        self.exportButton.setStyleSheet("""
-            QPushButton {
-                border: 1px solid gray;
-                border-radius: 8px;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(128, 128, 128, 30);
-            }
-        """)
-        self.exportButton.clicked.connect(self.exportFile)
-        self.ui.horizontalLayout_header.addWidget(self.exportButton)
-        self.settingsButton.setFixedSize(35, 35)
-        self.settingsButton.setIconSize(QSize(18, 18))
-        self.ui.horizontalLayout_header.addWidget(self.settingsButton)
+        self.ui.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
+        self.ui.exportButton.clicked.connect(self.exportFile)
         
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
-        self.ui.tableWidget.setColumnCount(2)
-        self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
         self.ui.tableWidget.itemChanged.connect(self.onInspectorChanged)
         self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
         self.showFullPath = True
-        
-        self.ui.tableWidget.verticalHeader().setVisible(False) 
-        self.ui.tableWidget.setShowGrid(False) 
-        self.ui.tableWidget.setFrameStyle(0)
-        self.ui.tableWidget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                background-color: transparent;
-                gridline-color: transparent;
-            }
-            QTableWidget::item { 
-                padding: 8px;
-                min-height: 30px;
-            }
-            QTableWidget::item:first-column {
-                border-right: 1px solid rgba(120, 120, 120, 60);
-            }
-            QTableWidget::item:selected {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-            }
-        """)
-        header_font = self.ui.tableWidget.horizontalHeader().font()
-        header_font.setPointSize(header_font.pointSize() + 1)
-        self.ui.tableWidget.horizontalHeader().setFont(header_font)
-        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
-                padding: 8px;
-                border: none;
-                border-right: 1px solid rgba(120, 120, 120, 60);
-                border-bottom: none;
-            }
-        """)
-        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         
         self.scene = CheckerboardGraphicsScene()
         orig_make_item = self.scene.makeItemEditable
@@ -547,26 +522,26 @@ class MainWindow(QMainWindow):
         self.scene.makeItemEditable = makeItemEditable
         self.ui.graphicsView.setScene(self.scene)
         
-        self.ui.graphicsView.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.ui.graphicsView.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        self.ui.graphicsView.setTransformationAnchor(self.ui.graphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.ui.graphicsView.setResizeAnchor(self.ui.graphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.ui.graphicsView.setViewportUpdateMode(self.ui.graphicsView.ViewportUpdateMode.FullViewportUpdate)
-        
         self.ui.graphicsView.minZoom = 0.05
         self.ui.graphicsView.maxZoom = 10.0
         self.ui.graphicsView.contentFittingZoom = 0.05
         
-        self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
-        
-        self.ui.mainSplitter.splitterMoved.connect(lambda: self.saveSplitterSizes())
-        self.ui.layersSplitter.splitterMoved.connect(lambda: self.saveSplitterSizes())
+        self.ui.mainSplitter.splitterMoved.connect(self.saveSplitterSizes)
+        self.ui.layersSplitter.splitterMoved.connect(self.saveSplitterSizes)
         
         self.loadSplitterSizes()
         
         self.currentSelectedItem = None
         self.cachedImages = {}
         self.currentZoom = 1.0
+
+        # Ensure scene background matches the current theme after scene creation
+        if hasattr(self, 'scene') and self.scene:
+            if self.isDarkMode:
+                self.scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
+            else:
+                self.scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
+            self.scene.update()
 
     # file display section
     def toggleFilenameDisplay(self, event):
@@ -590,9 +565,9 @@ class MainWindow(QMainWindow):
                 
         if self.cafilepath:
             self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
-
             self.ui.filename.setText(self.cafilepath)
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px;")
+            # Apply style for opened file (normal font, default text color)
+            self.ui.filename.setStyleSheet("font-style: normal; color: palette(text); border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
             self.showFullPath = True
             self.cafile = CAFile(self.cafilepath)
             self.cachedImages = {}
@@ -621,7 +596,8 @@ class MainWindow(QMainWindow):
             self.isDirty = False
         else:
             self.ui.filename.setText("No File Open")
-            self.ui.filename.setStyleSheet("border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 5px; color: #666666; font-style: italic;")
+            # Apply style for no file open (italic font, specific grey color)
+            self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
@@ -651,7 +627,7 @@ class MainWindow(QMainWindow):
             childItem = QTreeWidgetItem([getattr(sublayer, 'name', ''), "Layer", getattr(sublayer, 'id', ''), getattr(layer, 'id', '')])
             
             if hasattr(self, 'missing_assets') and hasattr(sublayer, '_content') and sublayer._content is not None:
-                if hasattr(sublayer, 'content') and hasattr(sublayer.content, 'src'):
+                if hasattr(sublayer, "content") and hasattr(sublayer.content, 'src'):
                     if sublayer.content.src in self.missing_assets:
                         childItem.setText(0, "⚠️ " + getattr(sublayer, 'name', ''))
                         childItem.setForeground(0, QColor(255, 0, 0))
@@ -1905,15 +1881,15 @@ class MainWindow(QMainWindow):
 
     # pause and play section
     def toggleAnimations(self):
-        # Toggle animation playing state
         self.animations_playing = not getattr(self, 'animations_playing', False)
-        # Update Play/Pause icon
-        if self.animations_playing:
+        
+        if self.animations_playing: # Just toggled TO playing
             if self.isDarkMode:
-                self.playButton.setIcon(self.pauseIconWhite)
+                self.ui.playButton.setIcon(self.pauseIconWhite) # Show PAUSE icon
             else:
-                self.playButton.setIcon(self.pauseIcon)
-            # Start or resume all animations
+                self.ui.playButton.setIcon(self.pauseIcon)
+            self.ui.playButton.setToolTip("Playing (Click to Pause)")
+
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     if anim.state() == QVariantAnimation.State.Stopped:
@@ -1925,12 +1901,13 @@ class MainWindow(QMainWindow):
                         anim.start()
                     else:
                         anim.resume()
-        else:
-            # Pause animations and update icon
+        else: # Just toggled TO NOT playing (paused/stopped)
             if self.isDarkMode:
-                self.playButton.setIcon(self.playIconWhite)
+                self.ui.playButton.setIcon(self.playIconWhite) # Show PLAY icon
             else:
-                self.playButton.setIcon(self.playIcon)
+                self.ui.playButton.setIcon(self.playIcon)
+            self.ui.playButton.setToolTip("Paused/Stopped (Click to Play)")
+
             for anim, _ in self.animations:
                 if isinstance(anim, QVariantAnimation):
                     anim.pause()
@@ -1956,55 +1933,63 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(status_message, 3000)
 
     def setupShortcuts(self):
-        settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
-        settings_shortcut.setContext(Qt.ApplicationShortcut)
-        settings_shortcut.activated.connect(self.showSettingsDialog)
-        
-        if self.isMacOS:
-            alt_settings_shortcut = QShortcut(QKeySequence("Meta+,"), self)
-            alt_settings_shortcut.setContext(Qt.ApplicationShortcut)
-            alt_settings_shortcut.activated.connect(self.showSettingsDialog)
-        # Save file shortcuts
-        seq = self.config_manager.get_export_shortcut()
-        export_shortcut = QShortcut(QKeySequence(seq), self)
-        export_shortcut.setContext(Qt.ApplicationShortcut)
-        export_shortcut.activated.connect(self.exportFile)
-        self.export_shortcut = export_shortcut
-        if self.isMacOS:
-            meta_seq = seq.replace('Ctrl', 'Meta')
-            export_shortcut_mac = QShortcut(QKeySequence(meta_seq), self)
-            export_shortcut_mac.setContext(Qt.ApplicationShortcut)
-            export_shortcut_mac.activated.connect(self.exportFile)
-            self.export_shortcut_mac = export_shortcut_mac
-        # Zoom in/out shortcuts
-        zi_seq = self.config_manager.get_zoom_in_shortcut()
-        zoom_in_sc = QShortcut(QKeySequence(zi_seq), self)
-        zoom_in_sc.setContext(Qt.ApplicationShortcut)
-        zoom_in_sc.activated.connect(self.zoomIn)
-        self.zoom_in_sc = zoom_in_sc
-        if self.isMacOS:
-            mac_zi = zi_seq.replace('Ctrl', 'Meta')
-            zoom_in_sc_mac = QShortcut(QKeySequence(mac_zi), self)
-            zoom_in_sc_mac.setContext(Qt.ApplicationShortcut)
-            zoom_in_sc_mac.activated.connect(self.zoomIn)
-            self.zoom_in_sc_mac = zoom_in_sc_mac
-        zo_seq = self.config_manager.get_zoom_out_shortcut()
-        zoom_out_sc = QShortcut(QKeySequence(zo_seq), self)
-        zoom_out_sc.setContext(Qt.ApplicationShortcut)
-        zoom_out_sc.activated.connect(self.zoomOut)
-        self.zoom_out_sc = zoom_out_sc
-        if self.isMacOS:
-            mac_zo = zo_seq.replace('Ctrl', 'Meta')
-            zoom_out_sc_mac = QShortcut(QKeySequence(mac_zo), self)
-            zoom_out_sc_mac.setContext(Qt.ApplicationShortcut)
-            zoom_out_sc_mac.activated.connect(self.zoomOut)
-            self.zoom_out_sc_mac = zoom_out_sc_mac
+        # Clear existing shortcuts for live updates
+        for shortcut_item in self.shortcuts_list:
+            shortcut_item.setEnabled(False)
+            shortcut_item.activated.disconnect()
+        self.shortcuts_list.clear()
+
+        export_shortcut_str = self.config_manager.get_export_shortcut()
+        if export_shortcut_str:
+            export_shortcut = QShortcut(QKeySequence(export_shortcut_str), self)
+            export_shortcut.activated.connect(self.exportFile)
+            self.shortcuts_list.append(export_shortcut)
+
+        zoom_in_shortcut_str = self.config_manager.get_zoom_in_shortcut()
+        if zoom_in_shortcut_str:
+            zoom_in_shortcut = QShortcut(QKeySequence(zoom_in_shortcut_str), self)
+            zoom_in_shortcut.activated.connect(self.zoomIn)
+            self.shortcuts_list.append(zoom_in_shortcut)
+
+        zoom_out_shortcut_str = self.config_manager.get_zoom_out_shortcut()
+        if zoom_out_shortcut_str:
+            zoom_out_shortcut = QShortcut(QKeySequence(zoom_out_shortcut_str), self)
+            zoom_out_shortcut.activated.connect(self.zoomOut)
+            self.shortcuts_list.append(zoom_out_shortcut)
+
+        close_window_shortcut_str = self.config_manager.get_close_window_shortcut()
+        if close_window_shortcut_str:
+            close_window_shortcut = QShortcut(QKeySequence(close_window_shortcut_str), self)
+            close_window_shortcut.activated.connect(self.close) # Connect to self.close
+            self.shortcuts_list.append(close_window_shortcut)
 
     # settings section
     def showSettingsDialog(self):
         dialog = SettingsDialog(self, self.config_manager)
-        dialog.exec()
-    
+        if dialog.exec() == QDialog.Accepted:
+            self.setupShortcuts()
+            # Theme update logic based on config
+            current_theme_preference = self.config_manager.get_config("ui_theme", "system")
+            if current_theme_preference == "dark":
+                if not self.isDarkMode:
+                    self.isDarkMode = True # Update state before applying
+                    self.applyDarkModeStyles()
+                    self.updateCategoryHeaders()
+                    # Notify callbacks
+                    for callback in self.theme_change_callbacks:
+                        callback(self.isDarkMode)
+            elif current_theme_preference == "light":
+                if self.isDarkMode:
+                    self.isDarkMode = False # Update state before applying
+                    self.applyLightModeStyles()
+                    self.updateCategoryHeaders()
+                    # Notify callbacks
+                    for callback in self.theme_change_callbacks:
+                        callback(self.isDarkMode)
+            else: # System theme
+                # Re-detect system theme. This will trigger updates if different.
+                self.detectDarkMode() # This internally calls applyXStyles, updateButtonIcons, updateCategoryHeaders and notifies callbacks if mode changed
+
     def apply_default_sizes(self):
         if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
             total_width = self.ui.mainSplitter.width()
@@ -2073,95 +2058,140 @@ class MainWindow(QMainWindow):
         self.saveWindowGeometry()
         super().closeEvent(event)
 
+    def saveFile(self):
+        if not hasattr(self, 'cafile') or not self.cafile:
+            QMessageBox.warning(self, "Save Error", "No file is open to save.")
+            return False
+        
+        if hasattr(self, 'cafilepath') and self.cafilepath:
+            try:
+                dest, name = os.path.split(self.cafilepath)
+                self.cafile.write_file(name, dest)
+                self.statusBar().showMessage(f"File saved to {self.cafilepath}", 3000)
+                self.isDirty = False
+                return True
+            except Exception as e:
+                QMessageBox.critical(self, "Save Error", f"Could not save file to {self.cafilepath}:\n{e}")
+                return False
+        else:
+            return self.saveFileAs() # No current path, so use Save As
+
+    def saveFileAs(self):
+        if not hasattr(self, 'cafile') or not self.cafile:
+            QMessageBox.warning(self, "Save As Error", "No file is open to save.")
+            return False
+
+        # Default to current cafilepath if it exists, otherwise user's documents or home directory
+        initial_path = self.cafilepath if hasattr(self, 'cafilepath') and self.cafilepath else QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        if not initial_path:
+             initial_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+
+        path, _ = QFileDialog.getSaveFileName(self, "Save As...", initial_path, "Core Animation Bundle (*.ca)")
+        
+        if not path:
+            return False # User cancelled
+            
+        # Ensure the path ends with .ca if the filter doesn't enforce it
+        if not path.lower().endswith('.ca'):
+            path += '.ca'
+            
+        try:
+            dest, name = os.path.split(path)
+            self.cafile.write_file(name, dest)
+            self.cafilepath = path # Update current file path
+            self.ui.filename.setText(path) # Update filename label
+            self.setWindowTitle(f"OpenPoster - {name}") # Update window title
+            self.statusBar().showMessage(f"File saved as {path}", 3000)
+            self.isDirty = False
+            return True
+        except Exception as e:
+            QMessageBox.critical(self, "Save As Error", f"Could not save file to {path}:\n{e}")
+            return False
+
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
     def exportFile(self):
-        if not hasattr(self, 'cafilepath') or not self.cafilepath or not hasattr(self, 'cafile') or not self.cafile:
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Export Error")
-            msg.setText("No file is currently open. Please open a .ca file first.")
-            pix = QPixmap(":/assets/openposter.png")
-            msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            msg.exec()
+        if not self.ca_file:
+            QMessageBox.warning(self, "No File", "Please open a CAFile first.")
             return
-        dialog = ExportOptionsDialog(self)
-        if dialog.exec() != QDialog.Accepted or not dialog.choice:
-            return
-        choice = dialog.choice
-        if choice == 'copy':
-            path, _ = QFileDialog.getSaveFileName(self, "Save As", self.cafilepath, "Core Animation Bundle (*.ca)")
-            if not path:
-                return
-            dest, name = os.path.split(path)
-            self.cafile.write_file(name, dest)
-            self.cafilepath = path
-            self.ui.filename.setText(path)
-            self.statusBar().showMessage(f"Saved As {path}", 3000)
-            self.isDirty = False # Mark clean after successful save
-            
-        elif choice == 'tendies':
-            path, _ = QFileDialog.getSaveFileName(self, "Save as .tendies", self.cafilepath, "Tendies Bundle (*.tendies)")
-            if not path:
-                return
-            
-            # Ensure the path ends with .tendies
-            if not path.lower().endswith('.tendies'):
-                path += '.tendies'
 
-            temp_dir = tempfile.mkdtemp()
-            try:
-                self._create_tendies_structure(temp_dir, self.cafilepath)
-
-                shutil.make_archive(path[:-len('.tendies')], 'zip', root_dir=temp_dir)
+        dialog = ExportOptionsDialog(self, self.config_manager) # Pass config_manager
+        if dialog.exec():
+            choice = dialog.choice
+            if choice == "copy":
+                path, _ = QFileDialog.getSaveFileName(self, "Save As", self.cafilepath, "Core Animation Bundle (*.ca)")
+                if not path:
+                    return
+                dest, name = os.path.split(path)
+                self.cafile.write_file(name, dest)
+                self.cafilepath = path
+                self.ui.filename.setText(path)
+                self.statusBar().showMessage(f"Saved As {path}", 3000)
+                self.isDirty = False # Mark clean after successful save
                 
-                os.rename(path[:-len('.tendies')] + '.zip', path)
-
-            except Exception as e:
-                 QMessageBox.critical(self, "Export Error", f"Failed to create .tendies file: {e}")
-            finally:
-                shutil.rmtree(temp_dir) # Clean up temp directory
-
-        elif choice == 'nugget':
-            temp_dir = tempfile.mkdtemp()
-            try:
-                self._create_tendies_structure(temp_dir, self.cafilepath)
-
-                export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
-                os.makedirs(export_dir, exist_ok=True)
-                base_name = os.path.splitext(os.path.basename(self.cafilepath))[0]
-                archive_base = os.path.join(export_dir, base_name)
-                zip_file = shutil.make_archive(archive_base, 'zip', root_dir=temp_dir)
-                tendies_path = archive_base + '.tendies'
-                os.rename(zip_file, tendies_path)
-                target = tendies_path
-
-                nugget_exec = self.config_manager.get_nugget_exec_path()
-                if not nugget_exec:
-                    QMessageBox.information(self, "Nugget Export", "Nugget executable path is not configured in settings.")
+            elif choice == 'tendies':
+                path, _ = QFileDialog.getSaveFileName(self, "Save as .tendies", self.cafilepath, "Tendies Bundle (*.tendies)")
+                if not path:
                     return
-                if not os.path.exists(nugget_exec):
-                    QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
-                    return
+                
+                # Ensure the path ends with .tendies
+                if not path.lower().endswith('.tendies'):
+                    path += '.tendies'
 
-                # Asynchronous nugget execution
-                if nugget_exec.lower().endswith(".py"):
-                    program = sys.executable
-                    args = [nugget_exec, target]
-                elif nugget_exec.endswith(".app") and self.isMacOS:
-                    program = "open"
-                    args = [nugget_exec, "--args", target]
-                else:
-                    program = nugget_exec
-                    args = [target]
+                temp_dir = tempfile.mkdtemp()
+                try:
+                    self._create_tendies_structure(temp_dir, self.cafilepath)
 
-                print("Running Nugget:", program, *args)
-                self._run_nugget_export(program, args)
-            except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
-            finally:
-                shutil.rmtree(temp_dir)  # Clean up temp directory (incl. content and zip)
-        
-        # Removed self.isDirty = False from here as it's now handled per-case
+                    shutil.make_archive(path[:-len('.tendies')], 'zip', root_dir=temp_dir)
+                    
+                    os.rename(path[:-len('.tendies')] + '.zip', path)
+
+                except Exception as e:
+                     QMessageBox.critical(self, "Export Error", f"Failed to create .tendies file: {e}")
+                finally:
+                    shutil.rmtree(temp_dir) # Clean up temp directory
+
+            elif choice == 'nugget':
+                temp_dir = tempfile.mkdtemp()
+                try:
+                    self._create_tendies_structure(temp_dir, self.cafilepath)
+
+                    export_dir = os.path.join(self.config_manager.config_dir, 'nugget-exports')
+                    os.makedirs(export_dir, exist_ok=True)
+                    base_name = os.path.splitext(os.path.basename(self.cafilepath))[0]
+                    archive_base = os.path.join(export_dir, base_name)
+                    zip_file = shutil.make_archive(archive_base, 'zip', root_dir=temp_dir)
+                    tendies_path = archive_base + '.tendies'
+                    os.rename(zip_file, tendies_path)
+                    target = tendies_path
+
+                    nugget_exec = self.config_manager.get_nugget_exec_path()
+                    if not nugget_exec:
+                        QMessageBox.information(self, "Nugget Export", "Nugget executable path is not configured in settings.")
+                        return
+                    if not os.path.exists(nugget_exec):
+                        QMessageBox.warning(self, "Nugget Error", f"Nugget executable not found at: {nugget_exec}")
+                        return
+
+                    # Asynchronous nugget execution
+                    if nugget_exec.lower().endswith(".py"):
+                        program = sys.executable
+                        args = [nugget_exec, target]
+                    elif nugget_exec.endswith(".app") and self.isMacOS:
+                        program = "open"
+                        args = [nugget_exec, "--args", target]
+                    else:
+                        program = nugget_exec
+                        args = [target]
+
+                    print("Running Nugget:", program, *args)
+                    self._run_nugget_export(program, args)
+                except Exception as e:
+                    QMessageBox.critical(self, "Export Error", f"Failed during Nugget export preparation: {e}")
+                finally:
+                    shutil.rmtree(temp_dir)  # Clean up temp directory (incl. content and zip)
+            
+            # Removed self.isDirty = False from here as it's now handled per-case
 
     def _create_tendies_structure(self, base_dir, ca_source_path):
         """Creates the necessary directory structure for a .tendies bundle inside base_dir."""
@@ -2275,10 +2305,10 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         mods = event.modifiers()
         if (mods & Qt.ControlModifier) or (self.isMacOS and (mods & Qt.MetaModifier)):
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal, Qt.KeypadPlus):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal): # Removed Qt.KeypadPlus
                 self.zoomIn()
                 return
-            if event.key() in (Qt.Key_Minus, Qt.Key_Underscore, Qt.KeypadMinus):
+            if event.key() in (Qt.Key_Minus, Qt.Key_Underscore): # Removed Qt.KeypadMinus
                 self.zoomOut()
                 return
         super(MainWindow, self).keyPressEvent(event)
