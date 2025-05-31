@@ -1939,6 +1939,16 @@ class MainWindow(QMainWindow):
             shortcut_item.activated.disconnect()
         self.shortcuts_list.clear()
 
+        # Standard shortcut for opening preferences/settings
+        settings_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Preferences), self)
+        settings_shortcut.activated.connect(self.showSettingsDialog)
+        self.shortcuts_list.append(settings_shortcut)
+
+        # Standard shortcut for opening a file
+        open_file_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Open), self)
+        open_file_shortcut.activated.connect(self.openFile)
+        self.shortcuts_list.append(open_file_shortcut)
+
         export_shortcut_str = self.config_manager.get_export_shortcut()
         if export_shortcut_str:
             export_shortcut = QShortcut(QKeySequence(export_shortcut_str), self)
@@ -1962,6 +1972,10 @@ class MainWindow(QMainWindow):
             close_window_shortcut = QShortcut(QKeySequence(close_window_shortcut_str), self)
             close_window_shortcut.activated.connect(self.close) # Connect to self.close
             self.shortcuts_list.append(close_window_shortcut)
+
+        play_pause_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Space), self)
+        play_pause_shortcut.activated.connect(self.toggleAnimations)
+        self.shortcuts_list.append(play_pause_shortcut)
 
     # settings section
     def showSettingsDialog(self):
