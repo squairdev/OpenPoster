@@ -1,56 +1,39 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QToolButton, QLabel
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QShortcut, QKeySequence
 from PySide6.QtCore import Qt, QSize
+from ui.ui_export_options_dialog import Ui_ExportOptionsDialog
 
 class ExportOptionsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, config_manager=None):
         super().__init__(parent)
         self.choice = None
-        self.setModal(True)
-        self.setWindowTitle("Export Options")
-        self.resize(500, 300)
-        self.init_ui()
+        self.config_manager = config_manager
 
-    def init_ui(self):
-        layout = QVBoxLayout(self)
-        title = QLabel("How would you like to export?")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size:18px;font-weight:bold;")
-        layout.addWidget(title)
-        options_layout = QHBoxLayout()
-        options_layout.setContentsMargins(0, 20, 0, 0)
-        border_color = "#fff" if getattr(self.parent(), 'isDarkMode', False) else "#000"
-        size = 180
-        icon_size = QSize(64, 64)
-        copy_btn = QToolButton(self)
-        copy_btn.setIcon(QIcon(":/icons/export-white.svg") if getattr(self.parent(), 'isDarkMode', False) else QIcon(":/icons/export.svg"))
-        copy_btn.setIconSize(icon_size)
-        copy_btn.setText("Export as a copy")
-        copy_btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        copy_btn.setFixedSize(size, size)
-        copy_btn.setStyleSheet(f"border:1px solid {border_color};border-radius:15px;")
-        copy_btn.clicked.connect(lambda: self.select('copy'))
-        options_layout.addWidget(copy_btn)
-        tendies_btn = QToolButton(self)
-        tendies_btn.setIcon(QIcon(":/icons/export-white.svg") if getattr(self.parent(), 'isDarkMode', False) else QIcon(":/icons/export.svg"))
-        tendies_btn.setIconSize(icon_size)
-        tendies_btn.setText("Export as .tendies")
-        tendies_btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        tendies_btn.setFixedSize(size, size)
-        tendies_btn.setStyleSheet(f"border:1px solid {border_color};border-radius:15px;")
-        tendies_btn.clicked.connect(lambda: self.select('tendies'))
-        options_layout.addWidget(tendies_btn)
-        nugget_btn = QToolButton(self)
-        nugget_btn.setIcon(QIcon(":/assets/nugget.png"))
-        nugget_btn.setIconSize(icon_size)
-        nugget_btn.setText("Export to Nugget")
-        nugget_btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        nugget_btn.setFixedSize(size, size)
-        nugget_btn.setStyleSheet(f"border:1px solid {border_color};border-radius:15px;")
-        nugget_btn.clicked.connect(lambda: self.select('nugget'))
-        options_layout.addWidget(nugget_btn)
-        layout.addLayout(options_layout)
+        self.ui = Ui_ExportOptionsDialog()
+        self.ui.setupUi(self)
 
-    def select(self, choice):
+        # Add close shortcut for the dialog itself
+        if self.config_manager:
+            close_shortcut_str = self.config_manager.get_close_window_shortcut()
+            if close_shortcut_str:
+                self.close_shortcut = QShortcut(QKeySequence(close_shortcut_str), self)
+                self.close_shortcut.activated.connect(self.close)
+
+        # Dynamic properties and signal connections
+        # Base styling for titleLabel, buttons is in .ui
+
+        self.ui.copyButton.clicked.connect(lambda: self.set_choice("copy"))
+        self.ui.tendiesButton.clicked.connect(lambda: self.set_choice("tendies"))
+        self.ui.nuggetButton.clicked.connect(lambda: self.set_choice("nugget"))
+
+        # Dynamic icon based on parent's theme state (if available)
+        is_dark = False
+        if parent and hasattr(parent, 'isDarkMode'):
+            is_dark = parent.isDarkMode
+        
+        nugget_icon_path = ":/icons/nugget-export-white.png" if is_dark else ":/icons/nugget-export.png"
+        self.ui.nuggetButton.setIcon(QIcon(nugget_icon_path))
+
+    def set_choice(self, choice):
         self.choice = choice
         self.accept() 

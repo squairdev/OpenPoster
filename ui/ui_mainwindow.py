@@ -15,10 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QGraphicsView, QHBoxLayout, QHeaderView,
-    QLabel, QMainWindow, QPushButton, QSizePolicy,
-    QSpacerItem, QSplitter, QTableWidget, QTableWidgetItem,
-    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsView, QHBoxLayout,
+    QHeaderView, QLabel, QMainWindow, QPushButton,
+    QSizePolicy, QSpacerItem, QSplitter, QTableWidget,
+    QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+    QWidget)
 
 from gui.custom_widgets import CustomGraphicsView
 
@@ -68,6 +69,7 @@ class Ui_OpenPoster(object):
         palette.setBrush(QPalette.ColorGroup.Disabled, QPalette.ColorRole.PlaceholderText, brush2)
 #endif
         OpenPoster.setPalette(palette)
+        OpenPoster.setWindowTitle(u"OpenPoster")
         OpenPoster.setStyleSheet(u"QWidget {\n"
 "    color: palette(text);\n"
 "    background-color: transparent;\n"
@@ -188,8 +190,10 @@ class Ui_OpenPoster(object):
 "QHeaderView::section {\n"
 "    background-color: palette(button);\n"
 "    color: palette(text);\n"
-"    padding: 5px;\n"
-"    border: 1px solid palette(mid);\n"
+"    padding: 8px;\n"
+"    border: none;\n"
+"    border-right: 1px solid rgba(120, 120, 120, 60);\n"
+"    border-bottom: none;\n"
 "    height: 30px;\n"
 "}\n"
 "\n"
@@ -207,6 +211,73 @@ class Ui_OpenPoster(object):
 "QPushButton, QLabel[clickable=\"true\"] {\n"
 "    border-radius: 6px;\n"
 "    padding: 5px 10px;\n"
+"}\n"
+"\n"
+"QLabel[objectName=\"previewLabel\"] {\n"
+"    font-size: 14px; \n"
+"    padding: 5px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"editButton\"] {\n"
+"    border: none; \n"
+"    background-colo"
+                        "r: transparent;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"editButton\"]:hover {\n"
+"    background-color: rgba(128, 128, 128, 30);\n"
+"    border-radius: 20px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"editButton\"]:checked {\n"
+"    background-color: rgba(0, 120, 215, 50);\n"
+"    border-radius: 20px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"playButton\"] {\n"
+"    border: none; \n"
+"    background-color: transparent;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"playButton\"]:hover {\n"
+"    background-color: rgba(128, 128, 128, 50);\n"
+"    border-radius: 20px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"settingsButton\"] {\n"
+"    border: none; \n"
+"    background-color: transparent;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"settingsButton\"]:hover {\n"
+"    background-color: rgba(128, 128, 128, 30);\n"
+"    border-radius: 20px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"exportButton\"] {\n"
+"    border: 1px solid gray;\n"
+"    border-radius: 8px;\n"
+"    padding: 5px 10px;\n"
+"}\n"
+"\n"
+"QPushButton[objectName=\"exportButton"
+                        "\"]:hover {\n"
+"    background-color: rgba(128, 128, 128, 30);\n"
+"}\n"
+"\n"
+"QTableWidget {\n"
+"    border: none;\n"
+"    background-color: transparent;\n"
+"    gridline-color: transparent;\n"
+"}\n"
+"\n"
+"QTableWidget::item { \n"
+"    padding: 8px;\n"
+"    min-height: 30px;\n"
+"}\n"
+"\n"
+"QTableWidget::item:first-column {\n"
+"    border-right: 1px solid rgba(120, 120, 120, 60);\n"
 "}\n"
 "")
         self.centralwidget = QWidget(OpenPoster)
@@ -246,6 +317,20 @@ class Ui_OpenPoster(object):
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_header.addItem(self.horizontalSpacer)
+
+        self.exportButton = QPushButton(self.headerWidget)
+        self.exportButton.setObjectName(u"exportButton")
+        self.exportButton.setIconSize(QSize(18, 18))
+        self.exportButton.setFixedHeight(35)
+
+        self.horizontalLayout_header.addWidget(self.exportButton)
+
+        self.settingsButton = QPushButton(self.headerWidget)
+        self.settingsButton.setObjectName(u"settingsButton")
+        self.settingsButton.setFixedSize(QSize(35, 35))
+        self.settingsButton.setIconSize(QSize(18, 18))
+
+        self.horizontalLayout_header.addWidget(self.settingsButton)
 
 
         self.verticalLayout.addWidget(self.headerWidget)
@@ -322,13 +407,39 @@ class Ui_OpenPoster(object):
         self.previewWidget.setStyleSheet(u"border: 1px solid #4B4B4B; border-radius: 4px; padding: 4px;")
         self.previewLayout = QVBoxLayout(self.previewWidget)
         self.previewLayout.setObjectName(u"previewLayout")
+        self.previewHeaderLayout_ui = QHBoxLayout()
+        self.previewHeaderLayout_ui.setObjectName(u"previewHeaderLayout_ui")
         self.previewLabel = QLabel(self.previewWidget)
         self.previewLabel.setObjectName(u"previewLabel")
 
-        self.previewLayout.addWidget(self.previewLabel)
+        self.previewHeaderLayout_ui.addWidget(self.previewLabel)
+
+        self.previewHeaderSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.previewHeaderLayout_ui.addItem(self.previewHeaderSpacer)
+
+        self.editButton = QPushButton(self.previewWidget)
+        self.editButton.setObjectName(u"editButton")
+        self.editButton.setFixedSize(QSize(40, 40))
+        self.editButton.setIconSize(QSize(24, 24))
+        self.editButton.setCheckable(True)
+
+        self.previewHeaderLayout_ui.addWidget(self.editButton)
+
+        self.playButton = QPushButton(self.previewWidget)
+        self.playButton.setObjectName(u"playButton")
+        self.playButton.setFixedSize(QSize(40, 40))
+        self.playButton.setIconSize(QSize(32, 32))
+
+        self.previewHeaderLayout_ui.addWidget(self.playButton)
+
+
+        self.previewLayout.addLayout(self.previewHeaderLayout_ui)
 
         self.graphicsView = CustomGraphicsView(self.previewWidget)
         self.graphicsView.setObjectName(u"graphicsView")
+        self.graphicsView.setObjectName(u"graphicsView")
+        self.graphicsView.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
         self.graphicsView.setRenderHints(QPainter.Antialiasing|QPainter.SmoothPixmapTransform)
         self.graphicsView.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.graphicsView.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
@@ -357,9 +468,13 @@ class Ui_OpenPoster(object):
         self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
         self.tableWidget.setObjectName(u"tableWidget")
         self.tableWidget.setColumnCount(2)
+        self.tableWidget.setShowGrid(False)
+        self.tableWidget.setFrameShape(QFrame.NoFrame)
+        self.tableWidget.setFrameShadow(QFrame.Plain)
         self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
         self.tableWidget.horizontalHeader().setDefaultSectionSize(120)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.verticalHeader().setVisible(False)
         self.tableWidget.verticalHeader().setMinimumSectionSize(25)
         self.tableWidget.verticalHeader().setDefaultSectionSize(30)
 
@@ -377,9 +492,15 @@ class Ui_OpenPoster(object):
     # setupUi
 
     def retranslateUi(self, OpenPoster):
-        OpenPoster.setWindowTitle(QCoreApplication.translate("OpenPoster", u"OpenPoster", None))
         self.openFile.setText(QCoreApplication.translate("OpenPoster", u"Open File", None))
         self.filename.setText(QCoreApplication.translate("OpenPoster", u"No File Open", None))
+        self.exportButton.setText(QCoreApplication.translate("OpenPoster", u"Export", None))
+#if QT_CONFIG(tooltip)
+        self.exportButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Export", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.settingsButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Settings", None))
+#endif // QT_CONFIG(tooltip)
         self.layersLabel.setText(QCoreApplication.translate("OpenPoster", u"Layers", None))
         ___qtreewidgetitem = self.treeWidget.headerItem()
         ___qtreewidgetitem.setText(2, QCoreApplication.translate("OpenPoster", u"ID", None));
@@ -391,11 +512,18 @@ class Ui_OpenPoster(object):
         ___qtreewidgetitem1.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None));
         ___qtreewidgetitem1.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None));
         self.previewLabel.setText(QCoreApplication.translate("OpenPoster", u"Preview", None))
-        self.graphicsView.setObjectName(QCoreApplication.translate("OpenPoster", u"graphicsView", None))
+        self.previewLabel.setStyleSheet(QCoreApplication.translate("OpenPoster", u"font-size: 14px; padding: 5px;", None))
+#if QT_CONFIG(tooltip)
+        self.editButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Toggle Edit Mode", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.playButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Play/Pause Animations", None))
+#endif // QT_CONFIG(tooltip)
         self.inspectorLabel.setText(QCoreApplication.translate("OpenPoster", u"Inspector", None))
         ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("OpenPoster", u"Key", None));
         ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
         ___qtablewidgetitem1.setText(QCoreApplication.translate("OpenPoster", u"Value", None));
+        pass
     # retranslateUi
 

@@ -18,8 +18,6 @@
         <file>icons/export-white.svg</file>
     </qresource>
     <qresource prefix="/descriptors">
-        <file>descriptors/.DS_Store</file>
-        <file>descriptors/E538499C-3F95-4FEA-AE58-191E5112E194/versions/0/contents/OpenPoster.wallpaper/.DS_Store</file>
         <file>descriptors/E538499C-3F95-4FEA-AE58-191E5112E194/versions/0/contents/OpenPoster.wallpaper/Wallpaper.plist</file>
     </qresource>
 </RCC>

@@ -1,7 +1,21 @@
 .DS_Store
 *.pyc
+*.pyo
+*.pyd
 /build
 /dist
 *.spec
 secrets
 .compile+codesign.sh
+
+# Python virtual environment
+env/
+venv/
+.venv/
+
+# Qt/PySide generated files
+*.qm
+ui/ui_*.py
+
+# Distribution / packaging
+*.egg-info/

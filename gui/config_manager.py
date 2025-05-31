@@ -28,12 +28,14 @@ class ConfigManager:
             "shortcuts": {
                 "export": "Ctrl+E",
                 "zoom_in": "Ctrl+=",
-                "zoom_out": "Ctrl+-"
+                "zoom_out": "Ctrl+-",
+                "close_window": "Ctrl+W"
             },
             "nugget": {
                 "exe_path": "",
                 "open_after_export": False
-            }
+            },
+            "language": "en_US"
         }
         self.config: Dict[str, Any] = {}
         self.ensure_config_dir()
@@ -180,15 +182,29 @@ class ConfigManager:
         if "shortcuts" not in self.config:
             self.config["shortcuts"] = {}
         self.config["shortcuts"]["zoom_out"] = seq
-        self.save_config() 
+        self.save_config()
+
+    def get_close_window_shortcut(self) -> str:
+        return self.config.get("shortcuts", {}).get("close_window", "Ctrl+W")
+
+    def set_close_window_shortcut(self, sequence: str) -> None:
+        if "shortcuts" not in self.config:
+            self.config["shortcuts"] = {}
+        self.config["shortcuts"]["close_window"] = sequence
+        self.save_config()
+
+    def get_shortcuts(self) -> Dict[str, str]:
+        """Get the entire shortcuts configuration dictionary."""
+        default_shortcuts = self.default_config.get("shortcuts", {})
+        return self.config.get("shortcuts", default_shortcuts).copy() # Return a copy to prevent direct modification
 
     def get_current_language(self) -> str:
         """Get the configured language."""
-        return self.config.get("language", "en")
+        return self.config.get("language", "en_US")
 
     def get_languages(self) -> List[str]:
         """Get the list of available languages."""
-        return ["en", "vi"]
+        return ["en_US", "en_GB", "en_AU", "vi", "zh", "ja", "ko", "th", "fr", "it"]
 
     def set_language(self, lang: str) -> None:
         """Set the configured language."""
