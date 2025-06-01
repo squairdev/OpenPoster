@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QCheckBox, QComboBox, QLineEdit, QFileDialog, QTabWidget, QWidget, QKeySequenceEdit, QApplication, QListWidgetItem
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QCheckBox, QComboBox, QLineEdit, QFileDialog, QTabWidget, QWidget, QKeySequenceEdit, QApplication, QListWidgetItem, QTableWidgetItem, QHeaderView, QAbstractItemView
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence, QFont
 import webbrowser
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize
@@ -21,6 +21,15 @@ class SettingsDialog(QDialog):
         self.ui = Ui_SettingsDialog()
         self.ui.setupUi(self)
 
+        self.ui.openFileShortcutDisplay.setText(QKeySequence(QKeySequence.StandardKey.Open).toString(QKeySequence.NativeText))
+        self.ui.settingsShortcutDisplay.setText(QKeySequence(QKeySequence.StandardKey.Preferences).toString(QKeySequence.NativeText))
+
+        header = self.ui.languageTableWidget.horizontalHeader()
+        header_font = header.font()
+        if header_font.pointSize() < 13:
+            header_font.setPointSize(header_font.pointSize() + 2) 
+            header.setFont(header_font)
+
         # Add close shortcut for the dialog itself
         close_shortcut_str = self.config_manager.get_close_window_shortcut()
         if close_shortcut_str:
@@ -39,7 +48,7 @@ class SettingsDialog(QDialog):
         ])
 
         self.populate_language_list()
-        self.ui.languageListWidget.itemClicked.connect(self.on_language_selected_from_list)
+        self.ui.languageTableWidget.itemClicked.connect(self.on_language_selected_from_list)
 
         self.ui.nuggetPathLineEdit.setText(self.config_manager.get_nugget_exec_path())
         self.ui.nuggetBrowseButton.clicked.connect(self.browse_nugget_executable)
@@ -201,7 +210,8 @@ class SettingsDialog(QDialog):
 
 
     def populate_language_list(self):
-        self.ui.languageListWidget.clear()
+        self.ui.languageTableWidget.clearContents()
+        self.ui.languageTableWidget.setRowCount(0)
         language_codes = self.config_manager.get_languages()
         current_lang_code = self.config_manager.get_current_language()
 
@@ -232,61 +242,77 @@ class SettingsDialog(QDialog):
         
         processed_languages.sort(key=lambda x: x[0])
 
+        self.ui.languageTableWidget.setColumnCount(2)
+        self.ui.languageTableWidget.setHorizontalHeaderLabels(["Language", "Translation Progress"])
+        
+        table_stylesheet = (
+            "QTableWidget { border: 1px solid black; gridline-color: transparent; }"
+            "QTableWidget::item:first-column { border-right: 1px solid black; }"
+        )
+        self.ui.languageTableWidget.setStyleSheet(table_stylesheet)
+
+        header = self.ui.languageTableWidget.horizontalHeader()
+        
+        header_stylesheet = (
+            "QHeaderView::section {"
+            "    border-top: none;"
+            "    border-left: none;"
+            "    border-right: none;"
+            "    border-bottom: 1px solid black;"
+            "    background-color: transparent;"
+            "    padding: 4px;"
+            "}"
+        )
+        header.setStyleSheet(header_stylesheet)
+
+        self.ui.languageTableWidget.setColumnWidth(0, 340)
+        self.ui.languageTableWidget.setColumnWidth(1, 160)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Fixed)
+
+        self.ui.languageTableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        row_count = 0
+
         if english_us_item_data:
             display_name, lang_code = english_us_item_data
             percentage = self._get_ts_completion_percentage(lang_code)
-            item_text = f"{display_name} ({lang_code}) - {percentage}%" 
-            list_item = QListWidgetItem(item_text)
-            list_item.setData(Qt.UserRole, lang_code)
-            self.ui.languageListWidget.addItem(list_item)
+            
+            self.ui.languageTableWidget.insertRow(row_count)
+            lang_item = QTableWidgetItem(f"{display_name} ({lang_code})")
+            lang_item.setData(Qt.UserRole, lang_code)
+            self.ui.languageTableWidget.setItem(row_count, 0, lang_item)
+            progress_item = QTableWidgetItem(f"{percentage}%")
+            self.ui.languageTableWidget.setItem(row_count, 1, progress_item)
+            
             if lang_code == current_lang_code:
-                self.ui.languageListWidget.setCurrentItem(list_item)
+                self.ui.languageTableWidget.setCurrentItem(lang_item)
+            row_count += 1
 
         for display_name, lang_code in processed_languages:
+            self.ui.languageTableWidget.insertRow(row_count)
+            lang_item = QTableWidgetItem(f"{display_name} ({lang_code})")
+            lang_item.setData(Qt.UserRole, lang_code)
+            self.ui.languageTableWidget.setItem(row_count, 0, lang_item)
+
             if lang_code in ai_translated_langs:
-                item_text = f"{display_name} ({lang_code})"
+                progress_item = QTableWidgetItem("AI Translated")
+                self.ui.languageTableWidget.setItem(row_count, 1, progress_item)
             else:
                 percentage = self._get_ts_completion_percentage(lang_code)
-                item_text = f"{display_name} ({lang_code}) - {percentage}%"
-            
-            list_item = QListWidgetItem(item_text)
-            list_item.setData(Qt.UserRole, lang_code)
-            self.ui.languageListWidget.addItem(list_item)
+                progress_item = QTableWidgetItem(f"{percentage}%")
+                self.ui.languageTableWidget.setItem(row_count, 1, progress_item)
+
             if lang_code == current_lang_code:
-                self.ui.languageListWidget.setCurrentItem(list_item)
-    
-    def on_language_selected_from_list(self, item: QListWidgetItem):
+                self.ui.languageTableWidget.setCurrentItem(lang_item)
+            row_count += 1
+
+    def on_language_selected_from_list(self, item: QTableWidgetItem):
+        if item is None: return
         lang_code = item.data(Qt.UserRole)
-        if not lang_code:
-            return
-
-        app = QApplication.instance()
-        
-        if hasattr(app, 'translator') and app.translator is not None:
-            app.removeTranslator(app.translator)
-
-        if not hasattr(self.parent(), 'translator') or self.parent().translator is None:
-            print("Error: Parent window does not have a 'translator' attribute or it is None.")
-            return
-
-        if hasattr(sys, '_MEIPASS'):
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        
-        qm_dir_path = os.path.join(base_path, "languages")
-
-        translator_to_use = self.parent().translator 
-
-        if translator_to_use.load(f"app_{lang_code}", qm_dir_path):
-            app.installTranslator(translator_to_use)
-        else:
-            if translator_to_use.load("app_en", qm_dir_path):
-                app.installTranslator(translator_to_use)
-            else:
-                print(f"Failed to load translation for {lang_code} from {qm_dir_path} and also failed to load fallback 'en'.")
-        
-        self.config_manager.set_language(lang_code)
-        
-        if hasattr(self.parent(), 'retranslateUi'):
-            self.parent().retranslateUi() 
+        if lang_code:
+            current_lang = self.config_manager.get_current_language()
+            if lang_code != current_lang:
+                self.config_manager.set_language(lang_code)
+                if hasattr(self.parent_window, 'load_language'):
+                    self.parent_window.load_language(lang_code)

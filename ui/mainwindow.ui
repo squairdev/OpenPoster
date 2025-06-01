@@ -445,10 +445,22 @@ QTableWidget::item:first-column {
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>60</height>
+        <height>40</height>
        </size>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_header">
+       <property name="leftMargin">
+        <number>5</number>
+       </property>
+       <property name="topMargin">
+        <number>5</number>
+       </property>
+       <property name="rightMargin">
+        <number>5</number>
+       </property>
+       <property name="bottomMargin">
+        <number>5</number>
+       </property>
        <item>
         <widget class="QPushButton" name="openFile">
          <property name="autoFillBackground">
@@ -458,7 +470,7 @@ QTableWidget::item:first-column {
           <string notr="true">QPushButton {
   border: 1.5px solid palette(highlight);
   border-radius: 8px;
-  padding: 5px 10px;
+  padding: 3px 8px;
   background-color: rgba(80, 120, 200, 30);
 }
 QPushButton:pressed {
@@ -468,6 +480,9 @@ QPushButton:pressed {
          <property name="text">
           <string>Open File</string>
          </property>
+         <property name="fixedHeight">
+          <number>30</number>
+         </property>
         </widget>
        </item>
        <item>
@@ -475,17 +490,20 @@ QPushButton:pressed {
          <property name="minimumSize">
           <size>
            <width>200</width>
-           <height>30</height>
+           <height>28</height>
           </size>
          </property>
          <property name="styleSheet">
-          <string notr="true">border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;</string>
+          <string notr="true">border: 1.5px solid palette(highlight); border-radius: 8px; padding: 3px 8px; color: #666666; font-style: italic;</string>
          </property>
          <property name="text">
           <string>No File Open</string>
          </property>
          <property name="cursor">
           <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="fixedHeight">
+          <number>30</number>
          </property>
         </widget>
        </item>
@@ -517,7 +535,7 @@ QPushButton:pressed {
           </size>
          </property>
          <property name="fixedHeight">
-          <number>35</number>
+          <number>30</number>
          </property>
         </widget>
        </item>
@@ -528,8 +546,8 @@ QPushButton:pressed {
          </property>
          <property name="fixedSize">
           <size>
-           <width>35</width>
-           <height>35</height>
+           <width>30</width>
+           <height>30</height>
           </size>
          </property>
          <property name="iconSize">
@@ -590,6 +608,9 @@ QPushButton:pressed {
             </item>
             <item>
              <widget class="QTreeWidget" name="treeWidget">
+              <property name="horizontalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOff</enum>
+              </property>
               <property name="columnCount">
                <number>3</number>
               </property>
@@ -650,6 +671,9 @@ QPushButton:pressed {
             </item>
             <item>
              <widget class="QTreeWidget" name="statesTreeWidget">
+              <property name="horizontalScrollBarPolicy">
+               <enum>Qt::ScrollBarAlwaysOff</enum>
+              </property>
               <property name="columnCount">
                <number>3</number>
               </property>
