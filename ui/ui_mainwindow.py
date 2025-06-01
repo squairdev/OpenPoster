@@ -288,29 +288,32 @@ class Ui_OpenPoster(object):
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.headerWidget = QWidget(self.centralwidget)
         self.headerWidget.setObjectName(u"headerWidget")
-        self.headerWidget.setMaximumSize(QSize(16777215, 60))
+        self.headerWidget.setMaximumSize(QSize(16777215, 40))
         self.horizontalLayout_header = QHBoxLayout(self.headerWidget)
         self.horizontalLayout_header.setObjectName(u"horizontalLayout_header")
+        self.horizontalLayout_header.setContentsMargins(5, 5, 5, 5)
         self.openFile = QPushButton(self.headerWidget)
         self.openFile.setObjectName(u"openFile")
         self.openFile.setAutoFillBackground(True)
         self.openFile.setStyleSheet(u"QPushButton {\n"
 "  border: 1.5px solid palette(highlight);\n"
 "  border-radius: 8px;\n"
-"  padding: 5px 10px;\n"
+"  padding: 3px 8px;\n"
 "  background-color: rgba(80, 120, 200, 30);\n"
 "}\n"
 "QPushButton:pressed {\n"
 "  background-color: rgba(60, 100, 180, 120);\n"
 "}")
+        self.openFile.setFixedHeight(30)
 
         self.horizontalLayout_header.addWidget(self.openFile)
 
         self.filename = QLabel(self.headerWidget)
         self.filename.setObjectName(u"filename")
-        self.filename.setMinimumSize(QSize(200, 30))
-        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px; color: #666666; font-style: italic;")
+        self.filename.setMinimumSize(QSize(200, 28))
+        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 3px 8px; color: #666666; font-style: italic;")
         self.filename.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.filename.setFixedHeight(30)
 
         self.horizontalLayout_header.addWidget(self.filename)
 
@@ -321,13 +324,13 @@ class Ui_OpenPoster(object):
         self.exportButton = QPushButton(self.headerWidget)
         self.exportButton.setObjectName(u"exportButton")
         self.exportButton.setIconSize(QSize(18, 18))
-        self.exportButton.setFixedHeight(35)
+        self.exportButton.setFixedHeight(30)
 
         self.horizontalLayout_header.addWidget(self.exportButton)
 
         self.settingsButton = QPushButton(self.headerWidget)
         self.settingsButton.setObjectName(u"settingsButton")
-        self.settingsButton.setFixedSize(QSize(35, 35))
+        self.settingsButton.setFixedSize(QSize(30, 30))
         self.settingsButton.setIconSize(QSize(18, 18))
 
         self.horizontalLayout_header.addWidget(self.settingsButton)
@@ -360,6 +363,7 @@ class Ui_OpenPoster(object):
 
         self.treeWidget = QTreeWidget(self.layersSection)
         self.treeWidget.setObjectName(u"treeWidget")
+        self.treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.treeWidget.setColumnCount(3)
         self.treeWidget.setIconSize(QSize(24, 24))
         self.treeWidget.setIndentation(20)
@@ -384,6 +388,7 @@ class Ui_OpenPoster(object):
 
         self.statesTreeWidget = QTreeWidget(self.statesSection)
         self.statesTreeWidget.setObjectName(u"statesTreeWidget")
+        self.statesTreeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.statesTreeWidget.setColumnCount(3)
         self.statesTreeWidget.setIconSize(QSize(24, 24))
         self.statesTreeWidget.setIndentation(20)

@@ -3,7 +3,7 @@ import os
 import math
 from lib.ca_elements.core.cafile import CAFile
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression
+from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression, QTranslator
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
 from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect
 from ui.ui_mainwindow import Ui_OpenPoster
@@ -204,6 +204,42 @@ class MainWindow(QMainWindow):
         self.ui.retranslateUi(self)
         # :3
         
+    def load_language(self, lang_code: str):
+        app = QApplication.instance()
+        if app is None:
+            print("Error: QApplication instance not found.")
+            return
+
+        if hasattr(app, 'translator') and app.translator is not None:
+            app.removeTranslator(app.translator)
+
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        
+        qm_dir_path = os.path.join(base_path, "languages")
+
+        new_translator = QTranslator()
+        loaded = False
+        if new_translator.load(f"app_{lang_code}", qm_dir_path):
+            app.installTranslator(new_translator)
+            app.translator = new_translator
+            loaded = True
+            print(f"Successfully loaded and installed translation for: {lang_code}")
+        else:
+            print(f"Failed to load translation for {lang_code} from {qm_dir_path}. Attempting fallback.")
+            if new_translator.load("app_en_US", qm_dir_path): 
+                app.installTranslator(new_translator)
+                app.translator = new_translator
+                loaded = True
+                print("Successfully loaded and installed fallback translation: en_US")
+            else:
+                print(f"Failed to load fallback translation from {qm_dir_path}.")
+        
+        if loaded:
+            QApplication.postEvent(self, QEvent(QEvent.LanguageChange))
+
     def eventFilter(self, obj, event):
         if event.type() == QEvent.ApplicationPaletteChange:
             self.updateAppearanceForMac()
@@ -1939,6 +1975,16 @@ class MainWindow(QMainWindow):
             shortcut_item.activated.disconnect()
         self.shortcuts_list.clear()
 
+        # Standard shortcut for opening preferences/settings
+        settings_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Preferences), self)
+        settings_shortcut.activated.connect(self.showSettingsDialog)
+        self.shortcuts_list.append(settings_shortcut)
+
+        # Standard shortcut for opening a file
+        open_file_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Open), self)
+        open_file_shortcut.activated.connect(self.openFile)
+        self.shortcuts_list.append(open_file_shortcut)
+
         export_shortcut_str = self.config_manager.get_export_shortcut()
         if export_shortcut_str:
             export_shortcut = QShortcut(QKeySequence(export_shortcut_str), self)
@@ -1962,6 +2008,10 @@ class MainWindow(QMainWindow):
             close_window_shortcut = QShortcut(QKeySequence(close_window_shortcut_str), self)
             close_window_shortcut.activated.connect(self.close) # Connect to self.close
             self.shortcuts_list.append(close_window_shortcut)
+
+        play_pause_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Space), self)
+        play_pause_shortcut.activated.connect(self.toggleAnimations)
+        self.shortcuts_list.append(play_pause_shortcut)
 
     # settings section
     def showSettingsDialog(self):
@@ -2111,7 +2161,7 @@ class MainWindow(QMainWindow):
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
     def exportFile(self):
-        if not self.ca_file:
+        if not self.cafile:
             QMessageBox.warning(self, "No File", "Please open a CAFile first.")
             return
 

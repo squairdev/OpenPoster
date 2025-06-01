@@ -16,9 +16,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QHBoxLayout,
-    QKeySequenceEdit, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QPushButton, QSizePolicy, QSpacerItem,
-    QTabWidget, QVBoxLayout, QWidget)
+    QHeaderView, QKeySequenceEdit, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 import resources_rc
 
 class Ui_SettingsDialog(object):
@@ -105,6 +105,44 @@ class Ui_SettingsDialog(object):
         self.shortcutsTabLayout = QVBoxLayout(self.shortcutsTab)
         self.shortcutsTabLayout.setObjectName(u"shortcutsTabLayout")
         self.shortcutsTabLayout.setAlignment(Qt.AlignTop)
+        self.openFileShortcutRowLayout = QHBoxLayout()
+        self.openFileShortcutRowLayout.setObjectName(u"openFileShortcutRowLayout")
+        self.openFileShortcutLabel = QLabel(self.shortcutsTab)
+        self.openFileShortcutLabel.setObjectName(u"openFileShortcutLabel")
+
+        self.openFileShortcutRowLayout.addWidget(self.openFileShortcutLabel)
+
+        self.openFileShortcutDisplay = QLabel(self.shortcutsTab)
+        self.openFileShortcutDisplay.setObjectName(u"openFileShortcutDisplay")
+
+        self.openFileShortcutRowLayout.addWidget(self.openFileShortcutDisplay)
+
+        self.openFileShortcutSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.openFileShortcutRowLayout.addItem(self.openFileShortcutSpacer)
+
+
+        self.shortcutsTabLayout.addLayout(self.openFileShortcutRowLayout)
+
+        self.settingsShortcutRowLayout = QHBoxLayout()
+        self.settingsShortcutRowLayout.setObjectName(u"settingsShortcutRowLayout")
+        self.settingsShortcutLabel = QLabel(self.shortcutsTab)
+        self.settingsShortcutLabel.setObjectName(u"settingsShortcutLabel")
+
+        self.settingsShortcutRowLayout.addWidget(self.settingsShortcutLabel)
+
+        self.settingsShortcutDisplay = QLabel(self.shortcutsTab)
+        self.settingsShortcutDisplay.setObjectName(u"settingsShortcutDisplay")
+
+        self.settingsShortcutRowLayout.addWidget(self.settingsShortcutDisplay)
+
+        self.settingsShortcutSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.settingsShortcutRowLayout.addItem(self.settingsShortcutSpacer)
+
+
+        self.shortcutsTabLayout.addLayout(self.settingsShortcutRowLayout)
+
         self.exportShortcutRowLayout = QHBoxLayout()
         self.exportShortcutRowLayout.setObjectName(u"exportShortcutRowLayout")
         self.exportShortcutLabel = QLabel(self.shortcutsTab)
@@ -199,17 +237,18 @@ class Ui_SettingsDialog(object):
         self.languagesTab.setObjectName(u"languagesTab")
         self.languagesTabLayout = QVBoxLayout(self.languagesTab)
         self.languagesTabLayout.setObjectName(u"languagesTabLayout")
-        self.languageListWidget = QListWidget(self.languagesTab)
-        self.languageListWidget.setObjectName(u"languageListWidget")
+        self.languageTableWidget = QTableWidget(self.languagesTab)
+        if (self.languageTableWidget.columnCount() < 2):
+            self.languageTableWidget.setColumnCount(2)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.languageTableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.languageTableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        self.languageTableWidget.setObjectName(u"languageTableWidget")
+        self.languageTableWidget.horizontalHeader().setStretchLastSection(True)
+        self.languageTableWidget.verticalHeader().setVisible(False)
 
-        self.languagesTabLayout.addWidget(self.languageListWidget)
-
-        self.languageAiTranslationLabel = QLabel(self.languagesTab)
-        self.languageAiTranslationLabel.setObjectName(u"languageAiTranslationLabel")
-        self.languageAiTranslationLabel.setAlignment(Qt.AlignCenter)
-        self.languageAiTranslationLabel.setWordWrap(True)
-
-        self.languagesTabLayout.addWidget(self.languageAiTranslationLabel)
+        self.languagesTabLayout.addWidget(self.languageTableWidget)
 
         self.tabWidget.addTab(self.languagesTab, "")
         self.aboutTab = QWidget()
@@ -288,6 +327,10 @@ class Ui_SettingsDialog(object):
         self.nuggetLabel.setText(QCoreApplication.translate("SettingsDialog", u"Nugget Executable:", None))
         self.nuggetBrowseButton.setText(QCoreApplication.translate("SettingsDialog", u"Browse", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.nuggetTab), QCoreApplication.translate("SettingsDialog", u"Nugget", None))
+        self.openFileShortcutLabel.setText(QCoreApplication.translate("SettingsDialog", u"Open File:", None))
+        self.openFileShortcutDisplay.setText(QCoreApplication.translate("SettingsDialog", u"Cmd+O", None))
+        self.settingsShortcutLabel.setText(QCoreApplication.translate("SettingsDialog", u"Open Settings:", None))
+        self.settingsShortcutDisplay.setText(QCoreApplication.translate("SettingsDialog", u"Cmd+,", None))
         self.exportShortcutLabel.setText(QCoreApplication.translate("SettingsDialog", u"Export Shortcut:", None))
         self.exportShortcutResetButton.setText(QCoreApplication.translate("SettingsDialog", u"Reset", None))
         self.zoomInShortcutLabel.setText(QCoreApplication.translate("SettingsDialog", u"Zoom In Shortcut:", None))
@@ -298,7 +341,11 @@ class Ui_SettingsDialog(object):
         self.closeWindowShortcutResetButton.setText(QCoreApplication.translate("SettingsDialog", u"Reset", None))
         self.resetAllShortcutsButton.setText(QCoreApplication.translate("SettingsDialog", u"Reset All Shortcuts", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.shortcutsTab), QCoreApplication.translate("SettingsDialog", u"Shortcuts", None))
-        self.languageAiTranslationLabel.setText(QCoreApplication.translate("SettingsDialog", u"Chinese, French, Italian, Japanese, Korean, and Thai translations by AI (Gemini 2.5 Pro).", None))
+        ___qtablewidgetitem = self.languageTableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("SettingsDialog", u"Language", None));
+        ___qtablewidgetitem1 = self.languageTableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("SettingsDialog", u"Translation Progress", None));
+        self.languageTableWidget.setStyleSheet(QCoreApplication.translate("SettingsDialog", u"border: 1px solid black;", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.languagesTab), QCoreApplication.translate("SettingsDialog", u"Languages", None))
         self.titleLabel.setText(QCoreApplication.translate("SettingsDialog", u"<h2>OpenPoster Beta</h2>", None))
         self.versionLabel.setText(QCoreApplication.translate("SettingsDialog", u"Version: v{__version__}", None))
