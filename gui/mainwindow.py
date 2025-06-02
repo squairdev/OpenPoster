@@ -318,12 +318,11 @@ class MainWindow(QMainWindow):
             scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
             scene.update()
             
+        common_toolbar_button_style = "padding: 5px; border-radius: 3px; border: none; background-color: transparent;"
+
         if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): # Check self.ui
-            self.ui.playButton.setStyleSheet("color: rgba(255, 255, 255, 150);") # Only set color
-            
-        if hasattr(self, 'ui') and hasattr(self.ui, 'editButton'): # Check self.ui
-            self.ui.editButton.setStyleSheet("color: rgba(255, 255, 255, 150);") # Only set color
-            
+            self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(255, 255, 255, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(255,255,255,0.1); }} QPushButton:pressed {{ background-color: rgba(255,255,255,0.2); }}")
+
         self.ui.tableWidget.setStyleSheet("""
             QTableWidget {
                 border: none;
@@ -360,7 +359,7 @@ class MainWindow(QMainWindow):
             QHeaderView::section {
                 background-color: palette(button);
                 color: palette(text);
-                padding: 4px;
+                padding: 2px;
                 border: none;
                 border-bottom: 1px solid palette(midlight);
                 border-right: 1px solid palette(midlight);
@@ -431,11 +430,11 @@ class MainWindow(QMainWindow):
             scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
             scene.update()
             
+        common_toolbar_button_style = "padding: 5px; border-radius: 3px; border: none; background-color: transparent;"
+
         if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): 
-            self.ui.playButton.setStyleSheet("color: rgba(0, 0, 0, 150);") 
+            self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(0, 0, 0, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(0,0,0,0.1); }} QPushButton:pressed {{ background-color: rgba(0,0,0,0.2); }}")
             
-        if hasattr(self, 'ui') and hasattr(self.ui, 'editButton'): 
-            self.ui.editButton.setStyleSheet("color: rgba(0, 0, 0, 150);") 
             
         self.ui.tableWidget.setStyleSheet("""
             QTableWidget {
@@ -473,7 +472,7 @@ class MainWindow(QMainWindow):
             QHeaderView::section {
                 background-color: palette(button);
                 color: palette(text);
-                padding: 4px;
+                padding: 2px;
                 border: none;
                 border-bottom: 1px solid palette(midlight);
                 border-right: 1px solid palette(midlight);
@@ -531,6 +530,10 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {light_general_text_color};");
 
     def addlayer(self, **kwargs):
+        if not hasattr(self, 'cafilepath') or not self.cafilepath:
+            QMessageBox.warning(self, "No File Open", "Please open or create a file before adding a layer.")
+            return
+
         if hasattr(self, "currentInspectObject"):
             element = self.currentInspectObject
         else:
@@ -539,11 +542,14 @@ class MainWindow(QMainWindow):
         self.ui.treeWidget.clear()
         self.populateLayersTreeWidget()
         self.renderPreview(self.cafile.rootlayer)
+
     # gui loader section
     def initUI(self):
         # Connect signals and set dynamic properties.
-        self.ui.editButton.setIcon(self.editIconWhite if self.isDarkMode else self.editIcon)
-        self.ui.editButton.clicked.connect(self.toggleEditMode)
+
+        if hasattr(self.ui, 'editButton'):
+            self.ui.editButton.hide()
+            self.ui.editButton.setEnabled(False)
         
         self.ui.playButton.setIcon(self.playIconWhite if self.isDarkMode else self.playIcon) 
         self.ui.playButton.clicked.connect(self.toggleAnimations)
@@ -558,6 +564,39 @@ class MainWindow(QMainWindow):
 
         # i know we said we would make ui in QDesigner but i cant figure out how to do this sooo - retron
         self.add_menu_ui = QMenu(self)
+        # style
+        self.add_menu_ui.setStyleSheet("""
+            QMenu {
+                background-color: #4a4a4a;
+                border: 1px solid #6a6a6a;
+                border-radius: 8px;
+                padding: 5px;
+            }
+            QMenu::item {
+                background-color: transparent;
+                padding: 8px 20px;
+                margin: 2px;
+                border-radius: 5px;
+            }
+            QMenu::item:selected {
+                background-color: #5a5a5a;
+                color: white;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #6a6a6a;
+                margin-left: 10px;
+                margin-right: 5px;
+            }
+        """)
+
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(15)
+        shadow.setXOffset(0)
+        shadow.setYOffset(2)
+        shadow.setColor(QColor(0, 0, 0, 160))
+        self.add_menu_ui.setGraphicsEffect(shadow)
+
         self.addMenuBasicAction = QAction(self)
         self.addMenuBasicAction.setText("Basic Layer")
         self.addMenuTextAction = QAction(self)
@@ -573,7 +612,27 @@ class MainWindow(QMainWindow):
         self.addMenuImageAction.triggered.connect(lambda: self.addlayer(name="New Image Layer",type="image"))
 
         self.ui.addButton.setMenu(self.add_menu_ui)
-
+        self.ui.addButton.setEnabled(True)
+        self.ui.addButton.setStyleSheet("""
+            QPushButton {
+                border: 1px solid gray;
+                border-radius: 6px;
+                padding: 4px;
+                background-color: transparent;
+            }
+            QPushButton::menu-indicator {
+                image: none;
+                width: 0px;
+                margin: 0px;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background-color: rgba(128, 128, 128, 0.3);
+            }
+            QPushButton:pressed {
+                background-color: rgba(128, 128, 128, 0.5);
+            }
+        """)
 
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
@@ -592,6 +651,10 @@ class MainWindow(QMainWindow):
             return editable
         self.scene.makeItemEditable = makeItemEditable
         self.ui.graphicsView.setScene(self.scene)
+        
+        self.ui.graphicsView.setEditMode(True)
+
+        self.scene.itemSelectedOnCanvas.connect(self.selectLayerInTree)
         
         self.ui.graphicsView.minZoom = 0.05
         self.ui.graphicsView.maxZoom = 10.0
@@ -663,8 +726,14 @@ class MainWindow(QMainWindow):
             self.ui.addButton.setEnabled(True)
         else:
             self.ui.filename.setText("No File Open")
-            # Apply style for no file open (italic font, specific grey color)
             self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.ui.addButton.setEnabled(True)
+            if hasattr(self, 'scene'): self.scene.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'treeWidget'): self.ui.treeWidget.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'statesTreeWidget'): self.ui.statesTreeWidget.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'tableWidget'): self.ui.tableWidget.setRowCount(0)
+            self.cafile = None
+            self.cafilepath = None
 
     def populateLayersTreeWidget(self):
         rootItem = QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id, ""])
@@ -716,9 +785,20 @@ class MainWindow(QMainWindow):
     def openInInspector(self, current: QTreeWidgetItem, _) -> None:
         # Inspector for tree widget item selection
         if current is None:
+            if hasattr(self.scene, 'currentEditableItem') and self.scene.currentEditableItem:
+                self.scene.currentEditableItem.removeBoundingBox()
+                self.scene.currentEditableItem = None
+            self.ui.tableWidget.blockSignals(True)
+            self.ui.tableWidget.setRowCount(0)
+            self.ui.tableWidget.blockSignals(False)
+            self.currentInspectObject = None
             return
         self.ui.tableWidget.blockSignals(True)
         self.currentInspectObject = None
+
+        if hasattr(self.scene, 'currentEditableItem') and self.scene.currentEditableItem:
+            self.scene.currentEditableItem.removeBoundingBox()
+            self.scene.currentEditableItem = None
 
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
@@ -844,6 +924,18 @@ class MainWindow(QMainWindow):
                 
             if element:
                 self.currentInspectObject = element
+
+                if hasattr(self, 'scene') and self.scene:
+                    for item_in_scene in self.scene.items():
+                        if hasattr(item_in_scene, 'data') and item_in_scene.data(0) == element.id and item_in_scene.data(1) == "Layer":
+                            editable_item = self.scene.makeItemEditable(item_in_scene)
+                            if editable_item:
+                                if hasattr(self.scene, 'currentEditableItem') and self.scene.currentEditableItem and self.scene.currentEditableItem != editable_item:
+                                    self.scene.currentEditableItem.removeBoundingBox()
+                                editable_item.setupBoundingBox()
+                                self.scene.currentEditableItem = editable_item
+                            break
+
                 row_index = self.add_category_header("Basic Info", row_index)
                 
                 self.add_inspector_row("NAME", current.text(0), row_index)
@@ -1988,24 +2080,6 @@ class MainWindow(QMainWindow):
                 elif isinstance(anim, QtCore.QTimeLine):
                     anim.setPaused(True)
 
-    def toggleEditMode(self):
-        edit_enabled = self.ui.editButton.isChecked()
-        self.ui.graphicsView.setEditMode(edit_enabled)
-        
-        if edit_enabled:
-            self.ui.graphicsView.setCursor(Qt.ArrowCursor)
-            self.ui.editButton.setToolTip("Disable Edit Mode")
-        else:
-            self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
-            self.ui.editButton.setToolTip("Enable Edit Mode")
-        
-        if edit_enabled:
-            status_message = "Edit mode enabled - Click and drag to select/move items"
-        else:
-            status_message = "Edit mode disabled - Use two fingers to pan"
-            
-        self.statusBar().showMessage(status_message, 3000)
-
     def setupShortcuts(self):
         # Clear existing shortcuts for live updates
         for shortcut_item in self.shortcuts_list:
@@ -2199,8 +2273,8 @@ class MainWindow(QMainWindow):
     def openDiscord(self):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
     def exportFile(self):
-        if not self.cafile:
-            QMessageBox.warning(self, "No File", "Please open a CAFile first.")
+        if not hasattr(self, 'cafile') or not self.cafile:
+            QMessageBox.warning(self, "No File Open", "Please open a file before exporting.")
             return
 
         dialog = ExportOptionsDialog(self, self.config_manager) # Pass config_manager
@@ -2328,7 +2402,9 @@ class MainWindow(QMainWindow):
             h = scene_rect.height()
             x0, y0 = layer.bounds[0], layer.bounds[1]
             layer.bounds = [x0, y0, str(w), str(h)]
+        
         if hasattr(self, 'currentInspectObject') and self.currentInspectObject == layer:
+            self.ui.tableWidget.blockSignals(True)
             for r in range(self.ui.tableWidget.rowCount()):
                 label = self.ui.tableWidget.item(r, 0)
                 if not label:
@@ -2338,6 +2414,7 @@ class MainWindow(QMainWindow):
                     self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.position)))
                 elif key == 'BOUNDS':
                     self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.bounds)))
+            self.ui.tableWidget.blockSignals(False)
         self.markDirty()
 
     def onTransformChanged(self, item, transform):
@@ -2350,12 +2427,15 @@ class MainWindow(QMainWindow):
             x0, y0 = layer.bounds[0], layer.bounds[1]
             layer.bounds = [x0, y0, str(w), str(h)]
             layer.transform = None
+        
         if hasattr(self, 'currentInspectObject') and self.currentInspectObject == layer:
+            self.ui.tableWidget.blockSignals(True)
             for r in range(self.ui.tableWidget.rowCount()):
                 label = self.ui.tableWidget.item(r, 0)
                 if label and label.text() == 'BOUNDS':
                     self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.bounds)))
                     break
+            self.ui.tableWidget.blockSignals(False)
             self.renderPreview(self.cafile.rootlayer)
             self.fitPreviewToView()
         self.markDirty()
@@ -2363,26 +2443,48 @@ class MainWindow(QMainWindow):
     def onInspectorChanged(self, item):
         if item.column() != 1:
             return
+            
+        self.ui.tableWidget.blockSignals(True)
         obj = getattr(self, 'currentInspectObject', None)
         if obj is None:
+            self.ui.tableWidget.blockSignals(False)
             return
+            
         key = self.ui.tableWidget.item(item.row(), 0).text()
         val = item.text()
         parts = key.lower().split()
         xml_key = parts[0] + ''.join(p.capitalize() for p in parts[1:])
+        
         if not hasattr(obj, xml_key):
+            self.ui.tableWidget.blockSignals(False)
             return
+            
         orig_val = getattr(obj, xml_key)
         if isinstance(orig_val, list):
-            # extract all numbers from the stringified list
-            nums = re.findall(r'-?\d+\.?\d*', str(orig_val))
+            nums = re.findall(r'-?\d+\.?\d*', str(val))
             setattr(obj, xml_key, nums)
         else:
             setattr(obj, xml_key, val)
+        
+        self.ui.tableWidget.blockSignals(False)
         self.markDirty()
-        if xml_key in ['position', 'bounds']:
+        
+        if xml_key in ['position', 'bounds', 'transform', 'opacity', 'backgroundColor', 'cornerRadius']:
+            if hasattr(self, 'scene') and self.scene:
+                for item_in_scene in self.scene.items():
+                    if hasattr(item_in_scene, "data") and item_in_scene.data(0) == obj.id and item_in_scene.data(1) == "Layer":
+                        if xml_key == 'position' and hasattr(obj, 'position') and obj.position:
+                            try:
+                                x = float(obj.position[0])
+                                y = float(obj.position[1])
+                                item_in_scene.setPos(x, y)
+                                editable = self.scene.editableItems.get(id(item_in_scene))
+                                if editable:
+                                    editable.updateBoundingBox()
+                            except (ValueError, IndexError):
+                                pass
+                        break
             self.renderPreview(self.cafile.rootlayer)
-            self.fitPreviewToView()
 
     def zoomIn(self):
         self.ui.graphicsView.handleZoom(120)
@@ -2433,3 +2535,24 @@ class MainWindow(QMainWindow):
         if os.path.exists(export_dir):
             shutil.rmtree(export_dir)
         os.makedirs(export_dir, exist_ok=True)
+
+    def selectLayerInTree(self, layer_id: str):
+        if not hasattr(self, 'ui') or not self.ui.treeWidget:
+            return
+        
+        iterator = QTreeWidgetItemIterator(self.ui.treeWidget)
+        while iterator.value():
+            item = iterator.value()
+            if item and item.text(2) == layer_id:
+                self.ui.treeWidget.setCurrentItem(item)
+                self.openInInspector(item, None)
+                return
+            iterator += 1
+
+    def _run_nugget_export(self, program, args):
+        process = QtCore.QProcess(self)
+        process.setProgram(program)
+        process.setArguments(args)
+        process.finished.connect(self._on_nugget_finished)
+        process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
+        process.start()

@@ -20,6 +20,7 @@ class EditableGraphicsItem(QObject):
     """A wrapper class that adds editing capabilities to QGraphicsItems"""
     itemChanged = Signal(QGraphicsItem)
     transformChanged = Signal(QTransform)
+    itemSelected = Signal(str)
     
     def __init__(self, item, parent=None):
         super(EditableGraphicsItem, self).__init__(parent)
@@ -298,6 +299,8 @@ class EditableGraphicsItem(QObject):
 
 
 class CheckerboardGraphicsScene(QGraphicsScene):
+    itemSelectedOnCanvas = Signal(str)
+    
     def __init__(self, parent=None):
         super(CheckerboardGraphicsScene, self).__init__(parent)
         self.checkerboardSize = 20
@@ -305,7 +308,6 @@ class CheckerboardGraphicsScene(QGraphicsScene):
         self.backgroundColor2 = QColor(220, 220, 220)
         self.editableItems = {}
         self.currentEditableItem = None
-        self.editMode = False
         self.currentHandleItem = None
         self.isDraggingLayer = False
         self.dragStartPos = QPointF()
@@ -335,19 +337,9 @@ class CheckerboardGraphicsScene(QGraphicsScene):
         painter.restore()
     
     def setEditMode(self, enabled):
-        """Enable or disable edit mode"""
-        self.editMode = enabled
-        for editable in self.editableItems.values():
-            editable.item.setFlag(QGraphicsItem.ItemIsMovable, enabled)
-        if not enabled:
-            self.clearSelection()
-            for editable in self.editableItems.values():
-                editable.removeBoundingBox()
-            
-            self.currentEditableItem = None
-            self.currentHandleItem = None
-            self.draggedItem = None
-            self.isDraggingLayer = False
+        for item in self.items():
+            if hasattr(item, "data") and item.data(1) == "Layer":
+                item.setFlag(QGraphicsItem.ItemIsMovable, True)
     
     def makeItemEditable(self, item):
         """Make a graphics item editable"""
@@ -358,11 +350,6 @@ class CheckerboardGraphicsScene(QGraphicsScene):
         return self.editableItems.get(id(item))
     
     def mousePressEvent(self, event):
-        """Handle mouse press events for editing"""
-        if not self.editMode:
-            super(CheckerboardGraphicsScene, self).mousePressEvent(event)
-            return
-        
         self.dragStartPos = event.scenePos()
         
         item_under_cursor = self.itemAt(event.scenePos(), QTransform())
@@ -402,6 +389,10 @@ class CheckerboardGraphicsScene(QGraphicsScene):
                 
                 QApplication.setOverrideCursor(Qt.ClosedHandCursor)
                 
+                # Emit signal with the layer ID to update layer tree selection
+                if hasattr(clicked_item, "data") and clicked_item.data(0):
+                    self.itemSelectedOnCanvas.emit(clicked_item.data(0))
+                
                 event.accept()
                 return
         
@@ -417,11 +408,6 @@ class CheckerboardGraphicsScene(QGraphicsScene):
         super(CheckerboardGraphicsScene, self).mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
-        """Handle mouse move events for editing"""
-        if not self.editMode:
-            super(CheckerboardGraphicsScene, self).mouseMoveEvent(event)
-            return
-        
         if self.currentHandleItem and self.currentEditableItem:
             self.currentEditableItem.handleEditOperation(event.scenePos())
             event.accept()
@@ -442,11 +428,6 @@ class CheckerboardGraphicsScene(QGraphicsScene):
         super(CheckerboardGraphicsScene, self).mouseMoveEvent(event)
     
     def mouseReleaseEvent(self, event):
-        """Handle mouse release events for editing"""
-        if not self.editMode:
-            super(CheckerboardGraphicsScene, self).mouseReleaseEvent(event)
-            return
-        
         if QApplication.overrideCursor():
             QApplication.restoreOverrideCursor()
         
@@ -501,11 +482,9 @@ class CustomGraphicsView(QGraphicsView):
         self.setDragMode(QGraphicsView.NoDrag)
     
     def setEditMode(self, enabled):
-        """Enable or disable edit mode"""
-        self.editMode = enabled
         scene = self.scene()
         if scene and isinstance(scene, CheckerboardGraphicsScene):
-            scene.setEditMode(enabled)
+            scene.setEditMode(True)
     
     def wheelEvent(self, event):
         if not self.scene() or not self.scene().items():
@@ -543,10 +522,6 @@ class CustomGraphicsView(QGraphicsView):
             self.scale(scale_factor, scale_factor)
     
     def mousePressEvent(self, event):
-        if self.editMode:
-            super(CustomGraphicsView, self).mousePressEvent(event)
-            return
-            
         if event.button() == Qt.MiddleButton or (event.button() == Qt.LeftButton and event.modifiers() == Qt.AltModifier):
             self._panning = True
             self._last_mouse_pos = event.position()
@@ -556,10 +531,6 @@ class CustomGraphicsView(QGraphicsView):
             super(CustomGraphicsView, self).mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
-        if self.editMode:
-            super(CustomGraphicsView, self).mouseMoveEvent(event)
-            return
-            
         if self._panning:
             delta = event.position() - self._last_mouse_pos
             self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
@@ -570,10 +541,6 @@ class CustomGraphicsView(QGraphicsView):
             super(CustomGraphicsView, self).mouseMoveEvent(event)
     
     def mouseReleaseEvent(self, event):
-        if self.editMode:
-            super(CustomGraphicsView, self).mouseReleaseEvent(event)
-            return
-            
         if self._panning and (event.button() == Qt.MiddleButton or 
                               (event.button() == Qt.LeftButton and event.modifiers() == Qt.AltModifier)):
             self._panning = False
