@@ -1,11 +1,11 @@
 import sys
 import os
 import math
-from lib.ca_elements.core.cafile import CAFile
+from lib.ca_elements.core import CAFile, CALayer
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression, QTranslator
-from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect
+from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence, QAction, QCursor
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect, QMenu
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
@@ -103,6 +103,8 @@ class MainWindow(QMainWindow):
         self.discordIconWhite = QIcon(":/icons/discord-white.svg")
         self.exportIcon = QIcon(":/icons/export.svg")
         self.exportIconWhite = QIcon(":/icons/export-white.svg")
+        self.addIcon = QIcon(":/icons/add.svg")
+        self.addIconWhite = QIcon(":/icons/add-white.svg")
         self.isDarkMode = False
     
     def updateButtonIcons(self):
@@ -130,6 +132,9 @@ class MainWindow(QMainWindow):
             
         if hasattr(self.ui, 'exportButton'):
             self.ui.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
+
+        if hasattr(self.ui, 'addButton'):
+            self.ui.addButton.setIcon(self.addIconWhite if self.isDarkMode else self.addIcon)
 
     # themes section
     def detectDarkMode(self):
@@ -525,6 +530,15 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {light_general_text_color};");
         if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {light_general_text_color};");
 
+    def addlayer(self, **kwargs):
+        if hasattr(self, "currentInspectObject"):
+            element = self.currentInspectObject
+        else:
+            element = self.cafile.rootlayer
+        element.addlayer(CALayer(**kwargs))
+        self.ui.treeWidget.clear()
+        self.populateLayersTreeWidget()
+        self.renderPreview(self.cafile.rootlayer)
     # gui loader section
     def initUI(self):
         # Connect signals and set dynamic properties.
@@ -539,7 +553,28 @@ class MainWindow(QMainWindow):
         
         self.ui.exportButton.setIcon(self.exportIconWhite if self.isDarkMode else self.exportIcon)
         self.ui.exportButton.clicked.connect(self.exportFile)
-        
+
+        self.ui.addButton.setIcon(self.addIconWhite if self.isDarkMode else self.addIcon)
+
+        # i know we said we would make ui in QDesigner but i cant figure out how to do this sooo - retron
+        self.add_menu_ui = QMenu(self)
+        self.addMenuBasicAction = QAction(self)
+        self.addMenuBasicAction.setText("Basic Layer")
+        self.addMenuTextAction = QAction(self)
+        self.addMenuTextAction.setText("Text Layer")
+        self.addMenuImageAction = QAction(self)
+        self.addMenuImageAction.setText("Image Layer")
+
+        self.add_menu_ui.addAction(self.addMenuBasicAction)
+        self.addMenuBasicAction.triggered.connect(lambda: self.addlayer())
+        self.add_menu_ui.addAction(self.addMenuTextAction)
+        self.addMenuTextAction.triggered.connect(lambda: self.addlayer(name="New Text Layer",type="text"))
+        self.add_menu_ui.addAction(self.addMenuImageAction)
+        self.addMenuImageAction.triggered.connect(lambda: self.addlayer(name="New Image Layer",type="image"))
+
+        self.ui.addButton.setMenu(self.add_menu_ui)
+
+
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
@@ -609,12 +644,7 @@ class MainWindow(QMainWindow):
             self.cachedImages = {}
             self.missing_assets = set()
             
-            rootItem = QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id, ""])
-            self.ui.treeWidget.addTopLevelItem(rootItem)
-
-            if len(self.cafile.rootlayer._sublayerorder) > 0:
-                self.treeWidgetChildren(rootItem, self.cafile.rootlayer)
-            
+            self.populateLayersTreeWidget()            
             self.populateStatesTreeWidget()
             
             # Clear previous animations and reset buffer
@@ -630,10 +660,18 @@ class MainWindow(QMainWindow):
                 self.animations = list(self._applyAnimation.animations)
             self.fitPreviewToView()
             self.isDirty = False
+            self.ui.addButton.setEnabled(True)
         else:
             self.ui.filename.setText("No File Open")
             # Apply style for no file open (italic font, specific grey color)
             self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+
+    def populateLayersTreeWidget(self):
+        rootItem = QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id, ""])
+        self.ui.treeWidget.addTopLevelItem(rootItem)
+        if len(self.cafile.rootlayer._sublayerorder) > 0:
+            self.treeWidgetChildren(rootItem, self.cafile.rootlayer)
+
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
@@ -1951,15 +1989,15 @@ class MainWindow(QMainWindow):
                     anim.setPaused(True)
 
     def toggleEditMode(self):
-        edit_enabled = self.editButton.isChecked()
+        edit_enabled = self.ui.editButton.isChecked()
         self.ui.graphicsView.setEditMode(edit_enabled)
         
         if edit_enabled:
             self.ui.graphicsView.setCursor(Qt.ArrowCursor)
-            self.editButton.setToolTip("Disable Edit Mode")
+            self.ui.editButton.setToolTip("Disable Edit Mode")
         else:
             self.ui.graphicsView.setCursor(Qt.OpenHandCursor)
-            self.editButton.setToolTip("Enable Edit Mode")
+            self.ui.editButton.setToolTip("Enable Edit Mode")
         
         if edit_enabled:
             status_message = "Edit mode enabled - Click and drag to select/move items"
