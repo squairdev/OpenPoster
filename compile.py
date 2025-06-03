@@ -13,6 +13,7 @@ args = [
 args.extend([
     '--collect-data=assets',
     '--collect-data=icons',
+    '--add-data=languages:languages',
 ])
 
 sep = ';' if platform == 'win32' else ':'
