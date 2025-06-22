@@ -28,7 +28,7 @@ class WelcomeWindow(QDialog):
         title_font.setBold(True)
         self.title_label.setFont(title_font)
         
-        self.version_label = QLabel("v0.0.3") 
+        self.version_label = QLabel("Version: v0.0.3 Beta 2") 
         version_font = self.version_label.font()
         version_font.setPointSize(12)
         self.version_label.setFont(version_font)
@@ -48,11 +48,11 @@ class WelcomeWindow(QDialog):
 
         self.btn_new = QPushButton("Create New .ca File")
         self.btn_open = QPushButton("Open .ca File")
-        self.btn_new.setFixedSize(450, 50)
-        self.btn_open.setFixedSize(450, 50)
+        self.btn_new.setFixedSize(460, 50)
+        self.btn_open.setFixedSize(460, 50)
         
-        self.btn_new.setStyleSheet("font-size: 15px;")
-        self.btn_open.setStyleSheet("font-size: 15px;")
+        self.btn_new.setStyleSheet("font-size: 15px; border-radius: 20px;")
+        self.btn_open.setStyleSheet("font-size: 15px; border-radius: 20px;")
 
         bottom_layout.addWidget(self.btn_new)
         bottom_layout.addWidget(self.btn_open)
