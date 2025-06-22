@@ -23,7 +23,9 @@ class ConfigManager:
                     "position": [100, 100],
                     "maximized": False,
                     "remember_size": True
-                }
+                },
+                "langu": "en_US",
+                "filename_display_mode": "Toggle"
             },
             "shortcuts": {
                 "export": "Ctrl+E",
@@ -209,4 +211,13 @@ class ConfigManager:
     def set_language(self, lang: str) -> None:
         """Set the configured language."""
         self.config["language"] = lang
+        self.save_config()
+
+    def get_filename_display_mode(self) -> str:
+        return self.config.get("ui", {}).get("filename_display_mode", "Toggle")
+
+    def set_filename_display_mode(self, value: str) -> None:
+        if "ui" not in self.config:
+            self.config["ui"] = {}
+        self.config["ui"]["filename_display_mode"] = value
         self.save_config()

@@ -23,7 +23,7 @@ class CAFile:
         self.elementTree = ET.parse(
             os.path.join(path, self.index["rootDocument"]))
         self.root = self.elementTree.getroot()
-        self.rootlayer = CALayer(self.root[0])
+        self.rootlayer = CALayer().load(self.root[0])
 
     def create(self):
         tree = ET.ElementTree()

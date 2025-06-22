@@ -25,8 +25,9 @@ jobs:
               exit 1
             }
           done
+
   compile-translations:
-    # needs: [lint]
+    needs: [lint]
     name: Compile translations
     runs-on: ubuntu-latest
     permissions:

@@ -21,6 +21,18 @@ class SettingsDialog(QDialog):
         self.ui = Ui_SettingsDialog()
         self.ui.setupUi(self)
 
+        self.filename_display_layout = QHBoxLayout()
+        self.filename_display_label = QLabel("Filename Display:")
+        self.ui.filenameDisplayCombo = QComboBox()
+        self.ui.filenameDisplayCombo.addItems(["Toggle", "File Name", "File Path"])
+        self.filename_display_layout.addWidget(self.filename_display_label)
+        self.filename_display_layout.addWidget(self.ui.filenameDisplayCombo)
+        self.ui.uiTab.layout().addLayout(self.filename_display_layout)
+
+        current_filename_display = self.config_manager.get_filename_display_mode()
+        self.ui.filenameDisplayCombo.setCurrentText(current_filename_display)
+        self.ui.filenameDisplayCombo.currentTextChanged.connect(self.on_filename_display_changed)
+
         self.ui.openFileShortcutDisplay.setText(QKeySequence(QKeySequence.StandardKey.Open).toString(QKeySequence.NativeText))
         self.ui.settingsShortcutDisplay.setText(QKeySequence(QKeySequence.StandardKey.Preferences).toString(QKeySequence.NativeText))
 
@@ -316,3 +328,6 @@ class SettingsDialog(QDialog):
                 self.config_manager.set_language(lang_code)
                 if hasattr(self.parent_window, 'load_language'):
                     self.parent_window.load_language(lang_code)
+
+    def on_filename_display_changed(self, value):
+        self.config_manager.set_filename_display_mode(value)

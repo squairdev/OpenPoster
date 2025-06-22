@@ -294,7 +294,7 @@ class Ui_OpenPoster(object):
         self.horizontalLayout_header.setContentsMargins(5, 5, 5, 5)
         self.openFile = QPushButton(self.headerWidget)
         self.openFile.setObjectName(u"openFile")
-        self.openFile.setAutoFillBackground(True)
+        self.openFile.setAutoFillBackground(False)
         self.openFile.setStyleSheet(u"QPushButton {\n"
 "  border: 1.5px solid palette(highlight);\n"
 "  border-radius: 8px;\n"
@@ -304,16 +304,16 @@ class Ui_OpenPoster(object):
 "QPushButton:pressed {\n"
 "  background-color: rgba(60, 100, 180, 120);\n"
 "}")
-        self.openFile.setFixedHeight(30)
+        self.openFile.setProperty(u"fixedHeight", 30)
 
         self.horizontalLayout_header.addWidget(self.openFile)
 
         self.filename = QLabel(self.headerWidget)
         self.filename.setObjectName(u"filename")
         self.filename.setMinimumSize(QSize(200, 28))
-        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 3px 8px; color: #666666; font-style: italic;")
         self.filename.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.filename.setFixedHeight(30)
+        self.filename.setStyleSheet(u"border: 1.5px solid palette(highlight); border-radius: 8px; padding: 3px 8px; color: #666666; font-style: italic;")
+        self.filename.setProperty(u"fixedHeight", 30)
 
         self.horizontalLayout_header.addWidget(self.filename)
 
@@ -324,14 +324,14 @@ class Ui_OpenPoster(object):
         self.exportButton = QPushButton(self.headerWidget)
         self.exportButton.setObjectName(u"exportButton")
         self.exportButton.setIconSize(QSize(18, 18))
-        self.exportButton.setFixedHeight(30)
+        self.exportButton.setProperty(u"fixedHeight", 30)
 
         self.horizontalLayout_header.addWidget(self.exportButton)
 
         self.settingsButton = QPushButton(self.headerWidget)
         self.settingsButton.setObjectName(u"settingsButton")
-        self.settingsButton.setFixedSize(QSize(30, 30))
         self.settingsButton.setIconSize(QSize(18, 18))
+        self.settingsButton.setProperty(u"fixedSize", QSize(30, 30))
 
         self.horizontalLayout_header.addWidget(self.settingsButton)
 
@@ -340,7 +340,7 @@ class Ui_OpenPoster(object):
 
         self.mainSplitter = QSplitter(self.centralwidget)
         self.mainSplitter.setObjectName(u"mainSplitter")
-        self.mainSplitter.setOrientation(Qt.Horizontal)
+        self.mainSplitter.setOrientation(Qt.Orientation.Horizontal)
         self.layersWidget = QWidget(self.mainSplitter)
         self.layersWidget.setObjectName(u"layersWidget")
         self.layersWidget.setMinimumSize(QSize(250, 0))
@@ -351,23 +351,40 @@ class Ui_OpenPoster(object):
         self.layersLayout.setContentsMargins(0, 0, 0, 0)
         self.layersSplitter = QSplitter(self.layersWidget)
         self.layersSplitter.setObjectName(u"layersSplitter")
-        self.layersSplitter.setOrientation(Qt.Vertical)
+        self.layersSplitter.setOrientation(Qt.Orientation.Vertical)
         self.layersSection = QWidget(self.layersSplitter)
         self.layersSection.setObjectName(u"layersSection")
         self.layersSectionLayout = QVBoxLayout(self.layersSection)
         self.layersSectionLayout.setObjectName(u"layersSectionLayout")
+        self.layersHeaderLayout = QHBoxLayout()
+        self.layersHeaderLayout.setObjectName(u"layersHeaderLayout")
         self.layersLabel = QLabel(self.layersSection)
         self.layersLabel.setObjectName(u"layersLabel")
 
-        self.layersSectionLayout.addWidget(self.layersLabel)
+        self.layersHeaderLayout.addWidget(self.layersLabel)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.layersHeaderLayout.addItem(self.horizontalSpacer_2)
+
+        self.addButton = QPushButton(self.layersSection)
+        self.addButton.setObjectName(u"addButton")
+        self.addButton.setEnabled(False)
+        self.addButton.setMouseTracking(True)
+        self.addButton.setIconSize(QSize(24, 24))
+
+        self.layersHeaderLayout.addWidget(self.addButton)
+
+
+        self.layersSectionLayout.addLayout(self.layersHeaderLayout)
 
         self.treeWidget = QTreeWidget(self.layersSection)
         self.treeWidget.setObjectName(u"treeWidget")
-        self.treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.treeWidget.setColumnCount(3)
+        self.treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.treeWidget.setIconSize(QSize(24, 24))
         self.treeWidget.setIndentation(20)
         self.treeWidget.setUniformRowHeights(True)
+        self.treeWidget.setColumnCount(3)
         self.treeWidget.header().setVisible(True)
         self.treeWidget.header().setMinimumSectionSize(100)
         self.treeWidget.header().setDefaultSectionSize(200)
@@ -388,11 +405,11 @@ class Ui_OpenPoster(object):
 
         self.statesTreeWidget = QTreeWidget(self.statesSection)
         self.statesTreeWidget.setObjectName(u"statesTreeWidget")
-        self.statesTreeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.statesTreeWidget.setColumnCount(3)
+        self.statesTreeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.statesTreeWidget.setIconSize(QSize(24, 24))
         self.statesTreeWidget.setIndentation(20)
         self.statesTreeWidget.setUniformRowHeights(True)
+        self.statesTreeWidget.setColumnCount(3)
         self.statesTreeWidget.header().setVisible(True)
         self.statesTreeWidget.header().setMinimumSectionSize(100)
         self.statesTreeWidget.header().setDefaultSectionSize(200)
@@ -425,16 +442,16 @@ class Ui_OpenPoster(object):
 
         self.editButton = QPushButton(self.previewWidget)
         self.editButton.setObjectName(u"editButton")
-        self.editButton.setFixedSize(QSize(40, 40))
         self.editButton.setIconSize(QSize(24, 24))
         self.editButton.setCheckable(True)
+        self.editButton.setProperty(u"fixedSize", QSize(40, 40))
 
         self.previewHeaderLayout_ui.addWidget(self.editButton)
 
         self.playButton = QPushButton(self.previewWidget)
         self.playButton.setObjectName(u"playButton")
-        self.playButton.setFixedSize(QSize(40, 40))
         self.playButton.setIconSize(QSize(32, 32))
+        self.playButton.setProperty(u"fixedSize", QSize(40, 40))
 
         self.previewHeaderLayout_ui.addWidget(self.playButton)
 
@@ -443,12 +460,11 @@ class Ui_OpenPoster(object):
 
         self.graphicsView = CustomGraphicsView(self.previewWidget)
         self.graphicsView.setObjectName(u"graphicsView")
-        self.graphicsView.setObjectName(u"graphicsView")
-        self.graphicsView.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
-        self.graphicsView.setRenderHints(QPainter.Antialiasing|QPainter.SmoothPixmapTransform)
-        self.graphicsView.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-        self.graphicsView.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
-        self.graphicsView.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
+        self.graphicsView.viewport().setProperty(u"cursor", QCursor(Qt.CursorShape.OpenHandCursor))
+        self.graphicsView.setRenderHints(QPainter.RenderHint.Antialiasing|QPainter.RenderHint.SmoothPixmapTransform)
+        self.graphicsView.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.graphicsView.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.graphicsView.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
 
         self.previewLayout.addWidget(self.graphicsView)
 
@@ -472,10 +488,10 @@ class Ui_OpenPoster(object):
         __qtablewidgetitem1 = QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
         self.tableWidget.setObjectName(u"tableWidget")
-        self.tableWidget.setColumnCount(2)
+        self.tableWidget.setFrameShape(QFrame.Shape.NoFrame)
+        self.tableWidget.setFrameShadow(QFrame.Shadow.Plain)
         self.tableWidget.setShowGrid(False)
-        self.tableWidget.setFrameShape(QFrame.NoFrame)
-        self.tableWidget.setFrameShadow(QFrame.Plain)
+        self.tableWidget.setColumnCount(2)
         self.tableWidget.horizontalHeader().setMinimumSectionSize(100)
         self.tableWidget.horizontalHeader().setDefaultSectionSize(120)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
@@ -499,14 +515,17 @@ class Ui_OpenPoster(object):
     def retranslateUi(self, OpenPoster):
         self.openFile.setText(QCoreApplication.translate("OpenPoster", u"Open File", None))
         self.filename.setText(QCoreApplication.translate("OpenPoster", u"No File Open", None))
-        self.exportButton.setText(QCoreApplication.translate("OpenPoster", u"Export", None))
 #if QT_CONFIG(tooltip)
         self.exportButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Export", None))
 #endif // QT_CONFIG(tooltip)
+        self.exportButton.setText(QCoreApplication.translate("OpenPoster", u"Export", None))
 #if QT_CONFIG(tooltip)
         self.settingsButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Settings", None))
 #endif // QT_CONFIG(tooltip)
         self.layersLabel.setText(QCoreApplication.translate("OpenPoster", u"Layers", None))
+#if QT_CONFIG(tooltip)
+        self.addButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Add a new layer", None))
+#endif // QT_CONFIG(tooltip)
         ___qtreewidgetitem = self.treeWidget.headerItem()
         ___qtreewidgetitem.setText(2, QCoreApplication.translate("OpenPoster", u"ID", None));
         ___qtreewidgetitem.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None));
@@ -516,8 +535,8 @@ class Ui_OpenPoster(object):
         ___qtreewidgetitem1.setText(2, QCoreApplication.translate("OpenPoster", u"Value", None));
         ___qtreewidgetitem1.setText(1, QCoreApplication.translate("OpenPoster", u"Type", None));
         ___qtreewidgetitem1.setText(0, QCoreApplication.translate("OpenPoster", u"Name", None));
-        self.previewLabel.setText(QCoreApplication.translate("OpenPoster", u"Preview", None))
         self.previewLabel.setStyleSheet(QCoreApplication.translate("OpenPoster", u"font-size: 14px; padding: 5px;", None))
+        self.previewLabel.setText(QCoreApplication.translate("OpenPoster", u"Preview", None))
 #if QT_CONFIG(tooltip)
         self.editButton.setToolTip(QCoreApplication.translate("OpenPoster", u"Toggle Edit Mode", None))
 #endif // QT_CONFIG(tooltip)

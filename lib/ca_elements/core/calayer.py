@@ -9,7 +9,40 @@ from ..animation.cakeyframeanimation import CAKeyframeAnimation
 from ..animation.camatchmoveanimation import CAMatchMoveAnimation
 
 class CALayer:
-    def __init__(self, element):
+    def __init__(self, id="", type="default", name="New Layer"): 
+        # create default layer without reading from preexisting
+        self.layer_class = "CALayer"
+        self.id = id
+        self.name = name
+        self.position = ["0","0"]
+        self.bounds = ["0", "0", "100", "100"]
+        self.hidden = False
+        self.transform = None
+        self.anchorPoint = None
+        self.geometryFlipped = "0"
+        self.opacity = "100"
+        self.zPosition = None
+        self.backgroundColor = "0 0 0" # black
+        self.cornerRadius = None
+
+        if self.layer_class == "CALayer":
+            self._content = None
+            self._sublayerorder = []
+            self.states = {}
+            self.stateTransitions = []
+            self.animations = []
+
+        if type == "text":
+            self.layer_class="CATextLayer"
+            self.string="Text"
+            # TODO: do this stuff for defaults. cba do it now lol - retron
+        elif type == "image":
+            self.content = CGImage("image.png")
+            self._content = {} # this is required because inspector code looks for it even though it shouldnt pls fix enkei
+
+        
+
+    def load(self, element):
         self.element = element
         self.id = self.element.get('id')
         self.name = self.element.get('name')
@@ -49,7 +82,7 @@ class CALayer:
         if self._sublayers is not None:
             for layer in self._sublayers:
                 if layer.tag == "{http://www.apple.com/CoreAnimation/1.0}CALayer":
-                    self.sublayers[layer.get('id')] = CALayer(layer)
+                    self.sublayers[layer.get('id')] = CALayer().load(layer)
                     self._sublayerorder.append(layer.get('id'))
                 # TODO: support more specialized layer types in the future
 
@@ -76,6 +109,14 @@ class CALayer:
                     self.animations.append(CAKeyframeAnimation(animation))
                 elif animation.get("type") == "CAMatchMoveAnimation":
                     self.animations.append(CAMatchMoveAnimation(animation))
+        return self
+
+       
+    def addlayer(self, layer): # layer = CALayer
+        # add a child layer to the current layer
+        self.sublayers[layer.id] = layer
+        self._sublayerorder.append(layer.id)
+        return self.findlayer(layer.id)
 
     def findlayer(self, uniqueid):
         # must be a unique value or it will return the first instance it finds because im too lazy - retron

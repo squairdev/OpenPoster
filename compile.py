@@ -15,6 +15,8 @@ args = [
 args.extend([
     '--collect-data=assets',
     '--collect-data=icons',
+    '--add-data=languages:languages',
+    '--add-data=themes:themes',
 ])
 
 sep = ';' if platform == 'win32' else ':'
