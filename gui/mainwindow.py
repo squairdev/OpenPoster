@@ -304,14 +304,16 @@ class MainWindow(QMainWindow):
     def applyDarkModeStyles(self):
         if not hasattr(self, 'ui'): return
 
-        # Apply main dark stylesheet
-        try:
-            qss_path = self.findAssetPath("themes/dark_style.qss")
-            print(f"[MainWindow.applyDarkModeStyles] QSS path from findAssetPath: {qss_path}")
-            with open(qss_path, "r") as f:
-                self.ui.centralwidget.setStyleSheet(f.read())
-        except Exception as e:
-            print(f"Error applying dark_style.qss: {e}")
+        qss_path = self.findAssetPath("themes/dark_style.qss")
+        if not qss_path:
+            print("[MainWindow.applyDarkModeStyles] dark_style.qss not found; skipping QSS load")
+        else:
+            try:
+                print(f"[MainWindow.applyDarkModeStyles] QSS path from findAssetPath: {qss_path}")
+                with open(qss_path, "r") as f:
+                    self.ui.centralwidget.setStyleSheet(f.read())
+            except Exception as e:
+                print(f"Error applying dark_style.qss: {e}")
 
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
@@ -418,12 +420,15 @@ class MainWindow(QMainWindow):
     def applyLightModeStyles(self):
         if not hasattr(self, 'ui'): return
 
-        try:
-            qss_path = self.findAssetPath("themes/light_style.qss")
-            with open(qss_path, "r") as f:
-                self.ui.centralwidget.setStyleSheet(f.read())
-        except Exception as e:
-            print(f"Error applying light_style.qss: {e}")
+        qss_path = self.findAssetPath("themes/light_style.qss")
+        if not qss_path:
+            print("[MainWindow.applyLightModeStyles] light_style.qss not found; skipping QSS load")
+        else:
+            try:
+                with open(qss_path, "r") as f:
+                    self.ui.centralwidget.setStyleSheet(f.read())
+            except Exception as e:
+                print(f"Error applying light_style.qss: {e}")
 
         scene = self.scene if hasattr(self, 'scene') else None
         if scene and isinstance(scene, CheckerboardGraphicsScene):
@@ -715,6 +720,45 @@ class MainWindow(QMainWindow):
                 self._applyAnimation.animations.clear()
             self.animations = []
             # Render preview and capture default layer animations
+            self.scene.clear()
+            self.currentZoom = 1.0
+            self.ui.graphicsView.resetTransform()
+            self.renderPreview(self.cafile.rootlayer)
+            if hasattr(self._applyAnimation, 'animations'):
+                self.animations = list(self._applyAnimation.animations)
+            self.fitPreviewToView()
+            self.isDirty = False
+            self.ui.addButton.setEnabled(True)
+        else:
+            self.ui.filename.setText("No File Open")
+            self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.ui.addButton.setEnabled(True)
+            if hasattr(self, 'scene'): self.scene.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'treeWidget'): self.ui.treeWidget.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'statesTreeWidget'): self.ui.statesTreeWidget.clear()
+            if hasattr(self, 'ui') and hasattr(self.ui, 'tableWidget'): self.ui.tableWidget.setRowCount(0)
+            self.cafile = None
+            self.cafilepath = None
+
+    def open_ca_file(self, path):
+        self.ui.treeWidget.clear()
+        self.ui.statesTreeWidget.clear()
+        if path:
+            self.cafilepath = path
+            self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
+            self.ui.filename.setText(self.cafilepath)
+            self.ui.filename.setStyleSheet("font-style: normal; color: palette(text); border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
+            self.showFullPath = True
+            self.cafile = CAFile(self.cafilepath)
+            self.cachedImages = {}
+            self.missing_assets = set()
+            
+            self.populateLayersTreeWidget()
+            self.populateStatesTreeWidget()
+            
+            if hasattr(self._applyAnimation, 'animations'):
+                self._applyAnimation.animations.clear()
+            self.animations = []
             self.scene.clear()
             self.currentZoom = 1.0
             self.ui.graphicsView.resetTransform()
