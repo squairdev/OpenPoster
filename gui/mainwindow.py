@@ -743,7 +743,7 @@ class MainWindow(QMainWindow):
                 self, "Select File", "", "Core Animation Files (*.ca)")[0]
         else:
             self.cafilepath = QFileDialog.getOpenFileName(
-                self, "Select File", "", "Core Animation Files (*.ca)")[0]
+                self, "Select Folder", "")
         
         if self.cafilepath:
             self.open_ca_file(self.cafilepath)
