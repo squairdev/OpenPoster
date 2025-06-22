@@ -6,7 +6,7 @@ class WelcomeWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Welcome to OpenPoster Beta")
-        self.setFixedSize(700, 400)
+        self.setFixedSize(500, 400)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -15,7 +15,7 @@ class WelcomeWindow(QDialog):
         # Top: icon and title
         top_widget = QWidget()
         top_layout = QVBoxLayout()
-        top_layout.setContentsMargins(0, 50, 0, 0)
+        top_layout.setContentsMargins(0, 40, 0, 0)
         icon = QIcon(":/assets/openposter.png")
         icon_label = QLabel()
         pixmap = icon.pixmap(QSize(128, 128))
@@ -43,15 +43,17 @@ class WelcomeWindow(QDialog):
         bottom_widget = QWidget()
         bottom_layout = QVBoxLayout()
         bottom_layout.setAlignment(Qt.AlignCenter)
-        bottom_layout.setSpacing(20)
+        bottom_layout.setSpacing(10)
         btn_new = QPushButton("Create New .ca File")
         btn_open = QPushButton("Open .ca File")
-        btn_new.setFixedSize(600, 50)
-        btn_open.setFixedSize(600, 50)
+        btn_new.setFixedSize(450, 50)
+        btn_open.setFixedSize(450, 50)
         bottom_layout.addWidget(btn_new)
         bottom_layout.addWidget(btn_open)
         bottom_widget.setLayout(bottom_layout)
         layout.addWidget(bottom_widget, stretch=2)
+        btn_new.setStyleSheet("font-size: 15px;")
+        btn_open.setStyleSheet("font-size: 15px;")
 
         self.setLayout(layout)
 

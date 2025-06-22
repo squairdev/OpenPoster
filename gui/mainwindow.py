@@ -2287,17 +2287,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Save As Error", "No file is open to save.")
             return False
 
-        # Default to current cafilepath if it exists, otherwise user's documents or home directory
-        initial_path = self.cafilepath if hasattr(self, 'cafilepath') and self.cafilepath else QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
-        if not initial_path:
-             initial_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+        if hasattr(self, 'newfile_name') and self.newfile_name:
+            docs = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+            if not docs:
+                docs = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+            initial_path = os.path.join(docs, f"{self.newfile_name}.ca")
+        else:
+            initial_path = self.cafilepath if hasattr(self, 'cafilepath') and self.cafilepath else QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+            if not initial_path:
+                initial_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
 
         path, _ = QFileDialog.getSaveFileName(self, "Save As...", initial_path, "Core Animation Bundle (*.ca)")
         
         if not path:
             return False # User cancelled
             
-        # Ensure the path ends with .ca if the filter doesn't enforce it
         if not path.lower().endswith('.ca'):
             path += '.ca'
             

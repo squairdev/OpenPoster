@@ -6,6 +6,7 @@ from gui.mainwindow import MainWindow
 from gui.config_manager import ConfigManager
 from PySide6.QtCore import QTranslator
 from gui.welcome import WelcomeWindow
+from gui.newfile import NewFileDialog
 import os
 
 # class MyApp(QtWidgets.QApplication):
@@ -46,12 +47,28 @@ if __name__ == "__main__":
         print(f"Global QSS file not found: {qss_path}")
     # ────────────────────────────────────────────────────
 
-    # ─── Welcome Window ─────────────────────────────────
-    welcome = WelcomeWindow()
-    welcome.exec()
-    action = getattr(welcome, 'result', None)
-    if action is None:
-        sys.exit()
+    # ─── Welcome / New File Flow ─────────────────────────
+    action_type = None
+    action_data = None
+    while True:
+        welcome = WelcomeWindow()
+        welcome.exec()
+        action = getattr(welcome, 'result', None)
+        if action is None:
+            sys.exit()
+        if action[0] == "open":
+            action_type = "open"
+            break
+        if action[0] == "new":
+            newdlg = NewFileDialog()
+            newdlg.exec()
+            newact = getattr(newdlg, 'result', None)
+            if not newact or newact[0] == "back":
+                continue
+            if newact[0] == "create":
+                action_type = "new"
+                action_data = newact[1]
+                break
     # ────────────────────────────────────────────────────
 
     # ─── Main Window ────────────────────────────────────
@@ -60,13 +77,28 @@ if __name__ == "__main__":
     widget.show()
     widget.config_manager = config
     widget.translator = translator
-    # Load or create file after window is shown for correct preview scaling
-    if action[0] == "open":
+    # Apply selected action
+    project_root = os.path.dirname(__file__)
+    if action_type == "open":
         widget.openFile()
-    elif action[0] == "new":
-        project_root = os.path.dirname(__file__)
+    elif action_type == "new":
+        # Load template
         template_path = os.path.join(project_root, "assets", "openposter.ca")
         widget.open_ca_file(template_path)
+        # Apply configured name and dimensions
+        name = action_data.get("name") if action_data else None
+        width = action_data.get("width") if action_data else None
+        height = action_data.get("height") if action_data else None
+        if hasattr(widget, 'cafile') and widget.cafile and width and height:
+            # Set new bounds on root layer
+            widget.cafile.rootlayer.bounds = [str(0), str(0), str(width), str(height)]
+            # Re-render preview
+            widget.scene.clear()
+            widget.renderPreview(widget.cafile.rootlayer)
+            widget.fitPreviewToView()
+        # Store new file name for save defaults
+        if name:
+            widget.newfile_name = name
     # ────────────────────────────────────────────────────
 
     sys.exit(app.exec())
