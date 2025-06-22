@@ -5,7 +5,7 @@ from lib.ca_elements.core import CAFile, CALayer
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression, QTranslator
 from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence, QAction, QCursor
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect, QMenu, QTreeWidgetItemIterator
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect, QMenu, QTreeWidgetItemIterator, QInputDialog
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
@@ -539,11 +539,26 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "No File Open", "Please open or create a file before adding a layer.")
             return
 
+        layer = CALayer(**kwargs)
+        layer_type = kwargs.get("type")
+
+        if layer_type == "text":
+            text, ok = QInputDialog.getText(self, "New Text Layer", "Enter text:", QLineEdit.Normal, getattr(layer, "string", ""))
+            if not ok or not text:
+                return
+            layer.string = text
+        elif layer_type == "image":
+            image_path, _ = QFileDialog.getOpenFileName(self, "Select Image File", "", "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)")
+            if not image_path:
+                return
+            layer.content.src = image_path
+
         if hasattr(self, "currentInspectObject"):
             element = self.currentInspectObject
         else:
             element = self.cafile.rootlayer
-        element.addlayer(CALayer(**kwargs))
+
+        element.addlayer(layer)
         self.ui.treeWidget.clear()
         self.populateLayersTreeWidget()
         self.renderPreview(self.cafile.rootlayer)
@@ -643,6 +658,7 @@ class MainWindow(QMainWindow):
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
         self.ui.statesTreeWidget.currentItemChanged.connect(self.openStateInInspector)
         self.ui.tableWidget.itemChanged.connect(self.onInspectorChanged)
+        self.ui.tableWidget.verticalHeader().setDefaultSectionSize(self.ui.tableWidget.fontMetrics().height() * 2.5)
         self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
         self.showFullPath = True
         
@@ -692,6 +708,33 @@ class MainWindow(QMainWindow):
 
             self.showFullPath = not self.showFullPath
 
+    def updateFilenameDisplay(self):
+        display_mode = self.config_manager.get_filename_display_mode()
+        
+        if not hasattr(self, 'cafilepath') or not self.cafilepath:
+            self.ui.filename.setText("No File Open")
+            font = self.ui.filename.font()
+            font.setItalic(True)
+            self.ui.filename.setFont(font)
+            return
+
+        font = self.ui.filename.font()
+        font.setItalic(False)
+        self.ui.filename.setFont(font)
+
+        if display_mode == "File Name":
+            self.ui.filename.setText(os.path.basename(self.cafilepath))
+            self.ui.filename.mousePressEvent = None
+        elif display_mode == "File Path":
+            self.ui.filename.setText(self.cafilepath)
+            self.ui.filename.mousePressEvent = None
+        else:
+            if getattr(self, 'showFullPath', True):
+                self.ui.filename.setText(self.cafilepath)
+            else:
+                self.ui.filename.setText(os.path.basename(self.cafilepath))
+            self.ui.filename.mousePressEvent = self.toggleFilenameDisplay
+
     def openFile(self):
         self.ui.treeWidget.clear()
         self.ui.statesTreeWidget.clear()
@@ -699,96 +742,43 @@ class MainWindow(QMainWindow):
             self.cafilepath = QFileDialog.getOpenFileName(
                 self, "Select File", "", "Core Animation Files (*.ca)")[0]
         else:
-            self.cafilepath = QFileDialog.getExistingDirectory(
-                self, "Select Folder", "")
-                
+            self.cafilepath = QFileDialog.getOpenFileName(
+                self, "Select File", "", "Core Animation Files (*.ca)")[0]
+        
         if self.cafilepath:
-            self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
-            self.ui.filename.setText(self.cafilepath)
-            # Apply style for opened file (normal font, default text color)
-            self.ui.filename.setStyleSheet("font-style: normal; color: palette(text); border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
-            self.showFullPath = True
-            self.cafile = CAFile(self.cafilepath)
-            self.cachedImages = {}
-            self.missing_assets = set()
-            
-            self.populateLayersTreeWidget()            
-            self.populateStatesTreeWidget()
-            
-            # Clear previous animations and reset buffer
-            if hasattr(self._applyAnimation, 'animations'):
-                self._applyAnimation.animations.clear()
-            self.animations = []
-            # Render preview and capture default layer animations
-            self.scene.clear()
-            self.currentZoom = 1.0
-            self.ui.graphicsView.resetTransform()
-            self.renderPreview(self.cafile.rootlayer)
-            if hasattr(self._applyAnimation, 'animations'):
-                self.animations = list(self._applyAnimation.animations)
-            self.fitPreviewToView()
-            self.isDirty = False
-            self.ui.addButton.setEnabled(True)
-        else:
-            self.ui.filename.setText("No File Open")
-            self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
-            self.ui.addButton.setEnabled(True)
-            if hasattr(self, 'scene'): self.scene.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'treeWidget'): self.ui.treeWidget.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'statesTreeWidget'): self.ui.statesTreeWidget.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'tableWidget'): self.ui.tableWidget.setRowCount(0)
-            self.cafile = None
-            self.cafilepath = None
+            self.open_ca_file(self.cafilepath)
+        
+        self.updateFilenameDisplay()
 
     def open_ca_file(self, path):
-        self.ui.treeWidget.clear()
-        self.ui.statesTreeWidget.clear()
-        if path:
+        try:
+            ca_file = CAFile(path)
+            self.cafile = ca_file
             self.cafilepath = path
-            self.setWindowTitle(f"OpenPoster - {os.path.basename(self.cafilepath)}")
-            self.ui.filename.setText(self.cafilepath)
-            self.ui.filename.setStyleSheet("font-style: normal; color: palette(text); border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
-            self.showFullPath = True
-            self.cafile = CAFile(self.cafilepath)
-            self.cachedImages = {}
-            self.missing_assets = set()
-            
             self.populateLayersTreeWidget()
             self.populateStatesTreeWidget()
-            
-            if hasattr(self._applyAnimation, 'animations'):
-                self._applyAnimation.animations.clear()
-            self.animations = []
-            self.scene.clear()
-            self.currentZoom = 1.0
-            self.ui.graphicsView.resetTransform()
             self.renderPreview(self.cafile.rootlayer)
-            if hasattr(self._applyAnimation, 'animations'):
-                self.animations = list(self._applyAnimation.animations)
             self.fitPreviewToView()
             self.isDirty = False
             self.ui.addButton.setEnabled(True)
-        else:
-            self.ui.filename.setText("No File Open")
-            self.ui.filename.setStyleSheet("font-style: italic; color: #666666; border: 1.5px solid palette(highlight); border-radius: 8px; padding: 5px 10px;")
-            self.ui.addButton.setEnabled(True)
-            if hasattr(self, 'scene'): self.scene.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'treeWidget'): self.ui.treeWidget.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'statesTreeWidget'): self.ui.statesTreeWidget.clear()
-            if hasattr(self, 'ui') and hasattr(self.ui, 'tableWidget'): self.ui.tableWidget.setRowCount(0)
-            self.cafile = None
-            self.cafilepath = None
+            self.updateFilenameDisplay()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open file: {e}")
+            self.markDirty()
 
     def populateLayersTreeWidget(self):
-        rootItem = QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id, ""])
-        self.ui.treeWidget.addTopLevelItem(rootItem)
-        if len(self.cafile.rootlayer._sublayerorder) > 0:
-            self.treeWidgetChildren(rootItem, self.cafile.rootlayer)
+        if hasattr(self, 'cafile') and self.cafile and self.cafile.rootlayer:
+            rootItem = QTreeWidgetItem([self.cafile.rootlayer.name, "Root", self.cafile.rootlayer.id, ""])
+            self.ui.treeWidget.addTopLevelItem(rootItem)
+            if len(self.cafile.rootlayer._sublayerorder) > 0:
+                self.treeWidgetChildren(rootItem, self.cafile.rootlayer)
 
+        self.ui.addButton.setEnabled(self.isDirty)
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
             return
+            
             
         all_items_rect = self.scene.itemsBoundingRect()
         
