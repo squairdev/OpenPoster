@@ -26,18 +26,14 @@ class NewFileDialog(QDialog):
         top_widget.setLayout(top_layout)
         layout.addWidget(top_widget)
 
-        # Form: file name and dimensions
         form = QFormLayout()
-        # Default name from template folder
         template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'assets', 'openposter.ca'))
         default_name = os.path.basename(template_dir).replace('.ca', '')
         self.name_edit = QLineEdit(default_name)
-        # Style input fields
         self.name_edit.setStyleSheet("QLineEdit { padding: 4px; border: 1px solid palette(midlight); border-radius: 4px; }")
         form.addRow("File Name:", self.name_edit)
 
         self.width_spin = QSpinBox()
-        # Remove spin buttons for a cleaner look
         self.width_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.width_spin.setRange(1, 10000)
         self.width_spin.setStyleSheet("QSpinBox { padding: 4px; border: 1px solid palette(midlight); border-radius: 4px; }")
@@ -45,7 +41,6 @@ class NewFileDialog(QDialog):
         self.height_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.height_spin.setRange(1, 10000)
         self.height_spin.setStyleSheet("QSpinBox { padding: 4px; border: 1px solid palette(midlight); border-radius: 4px; }")
-        # Parse default bounds from template main.caml
         try:
             caml_path = os.path.join(template_dir, 'main.caml')
             tree = ET.parse(caml_path)

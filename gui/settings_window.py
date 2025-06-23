@@ -1,13 +1,17 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QCheckBox, QComboBox, QLineEdit, QFileDialog, QTabWidget, QWidget, QKeySequenceEdit, QApplication, QListWidgetItem, QTableWidgetItem, QHeaderView, QAbstractItemView
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QCheckBox, 
+    QComboBox, QLineEdit, QFileDialog, QTabWidget, QWidget, QKeySequenceEdit, 
+    QApplication, QListWidgetItem, QTableWidget, QTableWidgetItem, QHeaderView, 
+    QAbstractItemView, QToolButton
+)
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QShortcut, QKeySequence, QFont
-import webbrowser
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QShortcut, QKeySequence, QFont, QIcon
 from PySide6.QtCore import QSize
 import os
 import sys
 import xml.etree.ElementTree as ET
+import webbrowser
 
 from gui._meta import __version__
 from ui.ui_settings_dialog import Ui_SettingsDialog
@@ -84,6 +88,17 @@ class SettingsDialog(QDialog):
         self.ui.discordButton.clicked.connect(lambda: webbrowser.open("https://discord.gg/t3abQJjHm6"))
         self.on_theme_changed(getattr(self.parent_window, 'isDarkMode', False))
 
+        # Appearance Tab
+        self.appearanceTab = QWidget()
+        self.ui.tabWidget.insertTab(1, self.appearanceTab, "Appearance")
+        appearanceLayout = QVBoxLayout(self.appearanceTab)
+        
+        self.themeTableWidget = QTableWidget()
+        appearanceLayout.addWidget(self.themeTableWidget)
+        
+        self.populate_theme_list()
+        self.themeTableWidget.itemClicked.connect(self.on_theme_selected)
+
     def set_discord_icon_dark(self, is_dark):
         discord_icon_path = ":/icons/discord-white.svg" if is_dark else ":/icons/discord.svg"
         if hasattr(self.ui, 'discordButton'):
@@ -93,6 +108,8 @@ class SettingsDialog(QDialog):
         discord_icon_path = ":/icons/discord-white.svg" if is_dark_mode else ":/icons/discord.svg"
         if hasattr(self.ui, 'discordButton'):
             self.ui.discordButton.setIcon(QIcon(discord_icon_path))
+        
+        self.apply_theme_to_dialog(is_dark_mode)
 
     def done(self, result):
         if hasattr(self.parent_window, 'theme_change_callbacks') and self.on_theme_changed in self.parent_window.theme_change_callbacks:
@@ -331,3 +348,68 @@ class SettingsDialog(QDialog):
 
     def on_filename_display_changed(self, value):
         self.config_manager.set_filename_display_mode(value)
+
+    def populate_theme_list(self):
+        self.themeTableWidget.setColumnCount(1)
+        self.themeTableWidget.setHorizontalHeaderLabels(["Theme"])
+        self.themeTableWidget.horizontalHeader().setVisible(False)
+        self.themeTableWidget.verticalHeader().setVisible(False)
+        self.themeTableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.themeTableWidget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.themeTableWidget.setShowGrid(False)
+        self.themeTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        themes = {"Light": "light", "Dark": "dark"}
+        current_theme = self.config_manager.get_config("ui_theme", "dark")
+
+        is_dark = current_theme == "dark"
+        self.apply_theme_to_dialog(is_dark)
+
+        for name, theme_id in themes.items():
+            row_position = self.themeTableWidget.rowCount()
+            self.themeTableWidget.insertRow(row_position)
+            item = QTableWidgetItem(name)
+            item.setData(Qt.UserRole, theme_id)
+            self.themeTableWidget.setItem(row_position, 0, item)
+            if theme_id == current_theme:
+                self.themeTableWidget.setCurrentItem(item)
+
+    def apply_theme_to_dialog(self, is_dark):
+        """Apply the theme QSS to the settings dialog"""
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        
+        qss_file = "themes/dark_style.qss" if is_dark else "themes/light_style.qss"
+        qss_path = os.path.join(base_path, qss_file)
+        
+        if os.path.exists(qss_path):
+            try:
+                with open(qss_path, "r") as f:
+                    self.setStyleSheet(f.read())
+            except Exception as e:
+                print(f"Error applying {qss_file} to settings dialog: {e}")
+
+    def on_theme_selected(self, item):
+        theme_id = item.data(Qt.UserRole)
+        self.config_manager.set_config("ui_theme", theme_id)
+        
+        is_dark = theme_id == "dark"
+        if self.parent_window.isDarkMode == is_dark:
+            return
+
+        # Apply theme to this dialog too
+        self.apply_theme_to_dialog(is_dark)
+
+        self.parent_window.isDarkMode = is_dark
+        if is_dark:
+            self.parent_window.applyDarkModeStyles()
+        else:
+            self.parent_window.applyLightModeStyles()
+
+        self.parent_window.updateCategoryHeaders()
+        self.parent_window.updateButtonIcons()
+
+        for callback in self.parent_window.theme_change_callbacks:
+            callback(is_dark)

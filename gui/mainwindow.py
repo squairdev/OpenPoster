@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
         self.theme_change_callbacks = [] # For notifying dialogs of theme changes
 
         # app resources then load
+        self.initAssetFinder()
         self.bindOperationFunctions()
         self.loadIconResources()
 
@@ -53,10 +54,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         
         self.isMacOS = platform.system() == "Darwin"
-        if self.isMacOS:
-            self.setupSystemAppearanceDetection()
-        else:
-            self.detectDarkMode()
+        self.loadThemeFromConfig()
         
         self.initUI()
         
@@ -70,6 +68,16 @@ class MainWindow(QMainWindow):
         # print(f"OpenPoster v{__version__} started") # Commented out startup message
 
     # app resources
+    def initAssetFinder(self):
+        if hasattr(sys, '_MEIPASS'):
+            self.app_base_path = sys._MEIPASS
+        else:
+            self.app_base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        
+        self.cachedImages = {}
+        self.missing_assets = set()
+        self.cafilepath = "" 
+
     def bindOperationFunctions(self):
         # TEMPORARY NAMES **not so temp now
         self._format = Format()
@@ -86,9 +94,8 @@ class MainWindow(QMainWindow):
         self.applyTransitionAnimationToPreview = self._applyAnimation.applyTransitionAnimationToPreview
         self.applySpringAnimationToItem = self._applyAnimation.applySpringAnimationToItem
 
-        self._Assets = Assets()
-        self.findAssetPath = self._Assets.findAssetPath
-        self.loadImage = self._Assets.loadImage
+        self.findAssetPath = lambda src_path: Assets.findAssetPath(self, src_path)
+        self.loadImage = lambda src_path: Assets.loadImage(self, src_path)
 
     def loadIconResources(self):
         self.editIcon = QIcon(":/icons/edit.svg")
@@ -136,34 +143,17 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, 'addButton'):
             self.ui.addButton.setIcon(self.addIconWhite if self.isDarkMode else self.addIcon)
 
-    # themes section
-    def detectDarkMode(self):
-        previous_dark_mode_state = getattr(self, 'isDarkMode', False)
-        new_dark_mode_detected = False
-        if platform.system() == 'Windows':
-            try:
-                import winreg
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize')
-                val = winreg.QueryValueEx(key, 'AppsUseLightTheme')[0]
-                new_dark_mode_detected = (val == 0)
-            except:
-                new_dark_mode_detected = False
+    def loadThemeFromConfig(self):
+        theme = self.config_manager.get_config("ui_theme", "dark")
+        self.isDarkMode = theme == "dark"
+        if self.isDarkMode:
+            self.applyDarkModeStyles()
         else:
-            try:
-                app = QApplication.instance()
-                if app:
-                    text = app.palette().color(QPalette.Active, QPalette.WindowText)
-                    new_dark_mode_detected = (text.lightness() > 128)
-            except:
-                new_dark_mode_detected = False
-        self.isDarkMode = new_dark_mode_detected
-        if hasattr(self, 'ui') and previous_dark_mode_state != self.isDarkMode:
-            if self.isDarkMode:
-                self.applyDarkModeStyles()
-            else:
-                self.applyLightModeStyles()
-            self.updateCategoryHeaders()
-    
+            self.applyLightModeStyles()
+        self.updateButtonIcons()
+        self.updateCategoryHeaders()
+
+    # themes section
     def updateCategoryHeaders(self):
         if not hasattr(self, 'ui') or not hasattr(self.ui, 'tableWidget'):
             return
@@ -194,10 +184,6 @@ class MainWindow(QMainWindow):
             self.detectDarkMode()
     
     def changeEvent(self, event: QtCore.QEvent):
-        # if event.type() == QEvent.ApplicationPaletteChange:
-        #     self.updateAppearanceForMac()
-        # if event.type() == QEvent.ApplicationFontChange:
-        #     self.updateCategoryHeaders()
         if event.type() == QtCore.QEvent.LanguageChange:
             # self.ui.retranslateUi(self)
             self.retranslateUi()
@@ -311,7 +297,15 @@ class MainWindow(QMainWindow):
             try:
                 print(f"[MainWindow.applyDarkModeStyles] QSS path from findAssetPath: {qss_path}")
                 with open(qss_path, "r") as f:
-                    self.ui.centralwidget.setStyleSheet(f.read())
+                    qss_content = f.read()
+                    self.ui.centralwidget.setStyleSheet(qss_content)
+                    
+                    if hasattr(self.ui, 'tableWidget'):
+                        self.ui.tableWidget.setObjectName("tableWidget")
+                    if hasattr(self.ui, 'treeWidget'):
+                        self.ui.treeWidget.setObjectName("treeWidget")
+                    if hasattr(self.ui, 'statesTreeWidget'):
+                        self.ui.statesTreeWidget.setObjectName("statesTreeWidget")
             except Exception as e:
                 print(f"Error applying dark_style.qss: {e}")
 
@@ -325,46 +319,45 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): # Check self.ui
             self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(255, 255, 255, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(255,255,255,0.1); }} QPushButton:pressed {{ background-color: rgba(255,255,255,0.2); }}")
 
-        self.ui.tableWidget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                background-color: transparent;
-                gridline-color: transparent;
-                color: palette(text);
-            }
-            QTableWidget::item { 
-                padding: 8px;
-                min-height: 30px;
-            }
-            QTableWidget::item:first-column {
-                border-right: 1px solid rgba(180, 180, 180, 60);
-            }
-            QTableWidget::item:selected {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-            }
-        """)
+        if hasattr(self.ui, 'tableWidget'):
+            self.ui.tableWidget.setStyleSheet("""
+                QTableWidget#tableWidget {
+                    border: none;
+                    background-color: transparent;
+                    gridline-color: transparent;
+                    color: #D0D0D0;
+                }
+                QTableWidget#tableWidget QHeaderView::section {
+                    background-color: #424242;
+                    color: #D0D0D0;
+                    padding: 8px;
+                    border: none;
+                    border-right: 1px solid rgba(180, 180, 180, 60);
+                    border-bottom: none;
+                }
+                QTableWidget#tableWidget::item { 
+                    padding: 8px;
+                    min-height: 30px;
+                    color: #D0D0D0;
+                }
+                QTableWidget#tableWidget::item:first-column {
+                    border-right: 1px solid rgba(180, 180, 180, 60);
+                }
+                QTableWidget#tableWidget::item:selected {
+                    background-color: #505050;
+                    color: #FFFFFF;
+                }
+            """)
         
-        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: palette(button); /* Adapts to QSS */
-                color: palette(text); /* Adapts to QSS */
-                padding: 8px;
-                border: none;
-                border-right: 1px solid rgba(180, 180, 180, 60); /* Might need adjustment based on QSS */
-                border-bottom: none;
-            }
-        """)
-
         # Style for QTreeWidget headers
         tree_header_style = """
             QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
+                background-color: #424242;
+                color: #D0D0D0;
                 padding: 2px;
                 border: none;
-                border-bottom: 1px solid palette(midlight);
-                border-right: 1px solid palette(midlight);
+                border-bottom: 1px solid #606060;
+                border-right: 1px solid #606060;
             }
             QHeaderView::section:first {
                 border-left: none;
@@ -372,8 +365,47 @@ class MainWindow(QMainWindow):
         """
         if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
             self.ui.treeWidget.header().setStyleSheet(tree_header_style)
+            self.ui.treeWidget.setStyleSheet("""
+                QTreeWidget#treeWidget {
+                    color: #D0D0D0;
+                    background-color: transparent;
+                }
+                QTreeWidget#treeWidget::item {
+                    color: #D0D0D0;
+                }
+                QTreeWidget#treeWidget::item:selected {
+                    background-color: #505050;
+                    color: #FFFFFF;
+                }
+            """)
         if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
             self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
+            self.ui.statesTreeWidget.setStyleSheet("""
+                QTreeWidget#statesTreeWidget {
+                    color: #303030;
+                    background-color: transparent;
+                }
+                QTreeWidget#statesTreeWidget::item {
+                    color: #303030;
+                }
+                QTreeWidget#statesTreeWidget::item:selected {
+                    background-color: #E0E0E0;
+                    color: #000000;
+                }
+            """)
+            self.ui.statesTreeWidget.setStyleSheet("""
+                QTreeWidget#statesTreeWidget {
+                    color: #D0D0D0;
+                    background-color: transparent;
+                }
+                QTreeWidget#statesTreeWidget::item {
+                    color: #D0D0D0;
+                }
+                QTreeWidget#statesTreeWidget::item:selected {
+                    background-color: #505050;
+                    color: #FFFFFF;
+                }
+            """)
 
         self.updateButtonIcons() 
         self.updateCategoryHeaders() 
@@ -415,7 +447,7 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, 'layersLabel'): self.ui.layersLabel.setStyleSheet(f"color: {dark_general_text_color};");
         if hasattr(self.ui, 'statesLabel'): self.ui.statesLabel.setStyleSheet(f"color: {dark_general_text_color};");
         if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {dark_general_text_color};");
-        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {dark_general_text_color};");
+        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {dark_general_text_color};")
 
     def applyLightModeStyles(self):
         if not hasattr(self, 'ui'): return
@@ -426,7 +458,16 @@ class MainWindow(QMainWindow):
         else:
             try:
                 with open(qss_path, "r") as f:
-                    self.ui.centralwidget.setStyleSheet(f.read())
+                    qss_content = f.read()
+                    self.ui.centralwidget.setStyleSheet(qss_content)
+                    
+                    # Apply theme to all critical widgets directly
+                    if hasattr(self.ui, 'tableWidget'):
+                        self.ui.tableWidget.setObjectName("tableWidget")
+                    if hasattr(self.ui, 'treeWidget'):
+                        self.ui.treeWidget.setObjectName("treeWidget")
+                    if hasattr(self.ui, 'statesTreeWidget'):
+                        self.ui.statesTreeWidget.setObjectName("statesTreeWidget")
             except Exception as e:
                 print(f"Error applying light_style.qss: {e}")
 
@@ -440,47 +481,46 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): 
             self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(0, 0, 0, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(0,0,0,0.1); }} QPushButton:pressed {{ background-color: rgba(0,0,0,0.2); }}")
             
-            
-        self.ui.tableWidget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                background-color: transparent;
-                gridline-color: transparent;
-                color: palette(text);
-            }
-            QTableWidget::item { 
-                padding: 8px;
-                min-height: 30px;
-            }
-            QTableWidget::item:first-column {
-                border-right: 1px solid rgba(120, 120, 120, 60);
-            }
-            QTableWidget::item:selected {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-            }
-        """)
+        # Force style update for critical widgets
+        if hasattr(self.ui, 'tableWidget'):
+            self.ui.tableWidget.setStyleSheet("""
+                QTableWidget#tableWidget {
+                    border: none;
+                    background-color: transparent;
+                    gridline-color: transparent;
+                    color: #303030;
+                }
+                QTableWidget#tableWidget QHeaderView::section {
+                    background-color: #F0F0F0;
+                    color: #303030;
+                    padding: 8px;
+                    border: none;
+                    border-right: 1px solid rgba(120, 120, 120, 60);
+                    border-bottom: none;
+                }
+                QTableWidget#tableWidget::item { 
+                    padding: 8px;
+                    min-height: 30px;
+                    color: #303030;
+                }
+                QTableWidget#tableWidget::item:first-column {
+                    border-right: 1px solid rgba(120, 120, 120, 60);
+                }
+                QTableWidget#tableWidget::item:selected {
+                    background-color: #E0E0E0;
+                    color: #000000;
+                }
+            """)
         
-        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: palette(button); /* Adapts to QSS */
-                color: palette(text); /* Adapts to QSS */
-                padding: 8px;
-                border: none;
-                border-right: 1px solid rgba(120, 120, 120, 60); /* Might need adjustment based on QSS */
-                border-bottom: none;
-            }
-        """)
-
-        # Style for QTreeWidget headers (same as dark for now, relies on palette)
+        # Style for QTreeWidget headers (for light mode)
         tree_header_style = """
             QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
+                background-color: #F0F0F0;
+                color: #303030;
                 padding: 2px;
                 border: none;
-                border-bottom: 1px solid palette(midlight);
-                border-right: 1px solid palette(midlight);
+                border-bottom: 1px solid #A0A0A0;
+                border-right: 1px solid #A0A0A0;
             }
             QHeaderView::section:first {
                 border-left: none;
@@ -488,8 +528,49 @@ class MainWindow(QMainWindow):
         """
         if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
             self.ui.treeWidget.header().setStyleSheet(tree_header_style)
+            self.ui.treeWidget.setStyleSheet("""
+                QTreeWidget#treeWidget {
+                    color: #303030;
+                    background-color: transparent;
+                }
+                QTreeWidget#treeWidget::item {
+                    color: #303030;
+                }
+                QTreeWidget#treeWidget::item:selected {
+                    background-color: #E0E0E0;
+                    color: #000000;
+                }
+            """)
         if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
             self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
+            self.ui.statesTreeWidget.setStyleSheet("""
+                QTreeWidget#statesTreeWidget {
+                    color: #303030;
+                    background-color: transparent;
+                }
+                QTreeWidget#statesTreeWidget::item {
+                    color: #303030;
+                }
+                QTreeWidget#statesTreeWidget::item:selected {
+                    background-color: #E0E0E0;
+                    color: #000000;
+                }
+            """)
+        if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
+            self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
+            self.ui.statesTreeWidget.setStyleSheet("""
+                QTreeWidget#statesTreeWidget {
+                    color: #303030;
+                    background-color: transparent;
+                }
+                QTreeWidget#statesTreeWidget::item {
+                    color: #303030;
+                }
+                QTreeWidget#statesTreeWidget::item:selected {
+                    background-color: #E0E0E0;
+                    color: #000000;
+                }
+            """)
 
         self.updateButtonIcons() 
         self.updateCategoryHeaders() 
@@ -584,31 +665,6 @@ class MainWindow(QMainWindow):
 
         # i know we said we would make ui in QDesigner but i cant figure out how to do this sooo - retron
         self.add_menu_ui = QMenu(self)
-        # style
-        self.add_menu_ui.setStyleSheet("""
-            QMenu {
-                background-color: #4a4a4a;
-                border: 1px solid #6a6a6a;
-                border-radius: 8px;
-                padding: 5px;
-            }
-            QMenu::item {
-                background-color: transparent;
-                padding: 8px 20px;
-                margin: 2px;
-                border-radius: 5px;
-            }
-            QMenu::item:selected {
-                background-color: #5a5a5a;
-                color: white;
-            }
-            QMenu::separator {
-                height: 1px;
-                background: #6a6a6a;
-                margin-left: 10px;
-                margin-right: 5px;
-            }
-        """)
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(15)
@@ -633,26 +689,6 @@ class MainWindow(QMainWindow):
 
         self.ui.addButton.setMenu(self.add_menu_ui)
         self.ui.addButton.setEnabled(True)
-        self.ui.addButton.setStyleSheet("""
-            QPushButton {
-                border: 1px solid gray;
-                border-radius: 6px;
-                padding: 4px;
-                background-color: transparent;
-            }
-            QPushButton::menu-indicator {
-                image: none;
-                width: 0px;
-                margin: 0px;
-                padding: 0px;
-            }
-            QPushButton:hover {
-                background-color: rgba(128, 128, 128, 0.3);
-            }
-            QPushButton:pressed {
-                background-color: rgba(128, 128, 128, 0.5);
-            }
-        """)
 
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
@@ -2161,30 +2197,10 @@ class MainWindow(QMainWindow):
 
     # settings section
     def showSettingsDialog(self):
-        dialog = SettingsDialog(self, self.config_manager)
-        if dialog.exec() == QDialog.Accepted:
+        if hasattr(self, 'config_manager'):
+            settings_dialog = SettingsDialog(self, self.config_manager)
+            settings_dialog.exec()
             self.setupShortcuts()
-            # Theme update logic based on config
-            current_theme_preference = self.config_manager.get_config("ui_theme", "system")
-            if current_theme_preference == "dark":
-                if not self.isDarkMode:
-                    self.isDarkMode = True # Update state before applying
-                    self.applyDarkModeStyles()
-                    self.updateCategoryHeaders()
-                    # Notify callbacks
-                    for callback in self.theme_change_callbacks:
-                        callback(self.isDarkMode)
-            elif current_theme_preference == "light":
-                if self.isDarkMode:
-                    self.isDarkMode = False # Update state before applying
-                    self.applyLightModeStyles()
-                    self.updateCategoryHeaders()
-                    # Notify callbacks
-                    for callback in self.theme_change_callbacks:
-                        callback(self.isDarkMode)
-            else: # System theme
-                # Re-detect system theme. This will trigger updates if different.
-                self.detectDarkMode() # This internally calls applyXStyles, updateButtonIcons, updateCategoryHeaders and notifies callbacks if mode changed
 
     def apply_default_sizes(self):
         if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
@@ -2575,9 +2591,6 @@ class MainWindow(QMainWindow):
         os.makedirs(export_dir, exist_ok=True)
 
     def open_project(self, path):
-        """
-        Open a .ca project from the given path (used for macOS file association).
-        """
         if not path or not os.path.exists(path):
             QMessageBox.warning(self, "Open Error", f"The file or folder does not exist: {path}")
             return
@@ -2626,5 +2639,8 @@ class MainWindow(QMainWindow):
         process.setProgram(program)
         process.setArguments(args)
         process.finished.connect(self._on_nugget_finished)
+        process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
+        process.start()
+
         process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
         process.start()

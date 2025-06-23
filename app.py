@@ -47,7 +47,14 @@ if __name__ == "__main__":
     # ─── Global QSS theme ───────────────────────────────
     palette = app.palette()
     text_color = palette.color(QtGui.QPalette.Active, QtGui.QPalette.WindowText)
-    is_dark = text_color.lightness() > 128
+    system_is_dark = text_color.lightness() > 128
+    
+    theme = config.get_config("ui_theme", None)
+    if theme is None:
+        theme = "dark" if system_is_dark else "light"
+        config.set_config("ui_theme", theme)
+    
+    is_dark = theme == "dark"
     qss_file = "themes/dark_style.qss" if is_dark else "themes/light_style.qss"
     qss_path = os.path.join(os.path.dirname(__file__), qss_file)
     if os.path.exists(qss_path):
