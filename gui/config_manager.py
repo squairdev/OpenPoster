@@ -221,3 +221,10 @@ class ConfigManager:
             self.config["ui"] = {}
         self.config["ui"]["filename_display_mode"] = value
         self.save_config()
+
+    def get_config(self, key: str, default: Any = None) -> Any:
+        return self.config.get(key, default)
+
+    def set_config(self, key: str, value: Any) -> None:
+        self.config[key] = value
+        self.save_config()

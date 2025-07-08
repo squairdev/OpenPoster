@@ -20,25 +20,49 @@ class CALayer:
         self.transform = None
         self.anchorPoint = None
         self.geometryFlipped = "0"
-        self.opacity = "100"
+        self.opacity = "1.0"
         self.zPosition = None
         self.backgroundColor = "0 0 0" # black
         self.cornerRadius = None
 
         if self.layer_class == "CALayer":
             self._content = None
+            self.sublayers = {}
             self._sublayerorder = []
             self.states = {}
             self.stateTransitions = []
             self.animations = []
 
         if type == "text":
-            self.layer_class="CATextLayer"
-            self.string="Text"
-            # TODO: do this stuff for defaults. cba do it now lol - retron
+            self.layer_class = "CATextLayer"
+            self.string = "Text Layer"
+            self.font = "SF Pro Text Regular"
+            self.tracking = "0"
+            self.leading = "0"
+            self.verticalAlignmentMode = "top"
+            self.wrapped = "1"
+            self.resizingMode = "auto"
+            self.allowsEdgeAntialiasing = "1"
+            self.allowsGroupOpacity = "1"
+            self.contentsFormat = "AutomaticAppKit"
+            self.cornerCurve = "circular"
+            self.classIfAvailable = "LKTextLayer"
+            self.backgroundColor = None
+
+            self._content = None
+            self.sublayers = {}
+            self._sublayerorder = []
+            self.states = {}
+            self.stateTransitions = []
+            self.animations = []
         elif type == "image":
             self.content = CGImage("image.png")
             self._content = {} # this is required because inspector code looks for it even though it shouldnt pls fix enkei
+            self.sublayers = {}
+            self._sublayerorder = []
+            self.states = {}
+            self.stateTransitions = []
+            self.animations = []
 
         
 
@@ -57,34 +81,46 @@ class CALayer:
         self.backgroundColor = self.element.get('backgroundColor')
         self.cornerRadius = self.element.get('cornerRadius')
         
-        # Store the layer class type (CALayer, CATextLayer, etc.)
-        self.layer_class = self.element.get('class')
+        self.layer_class = self.element.tag.split('}')[-1] if '}' in self.element.tag else self.element.tag
         
         # Handle CATextLayer specific properties
         if self.layer_class == "CATextLayer":
-            self.string = self.element.get('string')
-            self.fontSize = self.element.get('fontSize')
-            self.fontFamily = self.element.get('fontFamily')
-            self.alignmentMode = self.element.get('alignmentMode')
-            self.color = self.element.get('color')
+            self.tracking = self.element.get('tracking')
+            self.leading = self.element.get('leading')
+            self.verticalAlignmentMode = self.element.get('verticalAlignmentMode')
+            self.wrapped = self.element.get('wrapped')
+            self.resizingMode = self.element.get('resizingMode')
+            self.allowsEdgeAntialiasing = self.element.get('allowsEdgeAntialiasing')
+            self.allowsGroupOpacity = self.element.get('allowsGroupOpacity')
+            self.contentsFormat = self.element.get('contentsFormat')
+            self.cornerCurve = self.element.get('cornerCurve')
+            self.classIfAvailable = self.element.get('classIfAvailable')
+
+            font_element = self.element.find('{http://www.apple.com/CoreAnimation/1.0}font')
+            if font_element is not None:
+                self.font = font_element.get('value')
+            
+            string_element = self.element.find('{http://www.apple.com/CoreAnimation/1.0}string')
+            if string_element is not None:
+                self.string = string_element.get('value')
         
         self._content = self.element.find(
             '{http://www.apple.com/CoreAnimation/1.0}contents')
         if self._content is not None:
             if self._content.get('type') == "CGImage":
                 self.content = CGImage(self._content.get('src'))
-            # TODO: support more than just CGImage :skull:
 
         self.sublayers = {}
         self._sublayerorder = []
         self._sublayers = self.element.find(
             "{http://www.apple.com/CoreAnimation/1.0}sublayers")
         if self._sublayers is not None:
-            for layer in self._sublayers:
-                if layer.tag == "{http://www.apple.com/CoreAnimation/1.0}CALayer":
-                    self.sublayers[layer.get('id')] = CALayer().load(layer)
-                    self._sublayerorder.append(layer.get('id'))
-                # TODO: support more specialized layer types in the future
+            for layer_element in self._sublayers:
+                layer_class_name = layer_element.tag.split('}')[-1] if '}' in layer_element.tag else layer_element.tag
+                if layer_class_name:
+                    new_layer = CALayer().load(layer_element)
+                    self.sublayers[new_layer.id] = new_layer
+                    self._sublayerorder.append(new_layer.id)
 
         self.states = {}
         self._states = self.element.find(
@@ -118,6 +154,19 @@ class CALayer:
         self._sublayerorder.append(layer.id)
         return self.findlayer(layer.id)
 
+    def removelayer(self, layer_id):
+        if layer_id in self.sublayers:
+            del self.sublayers[layer_id]
+            if layer_id in self._sublayerorder:
+                self._sublayerorder.remove(layer_id)
+            return True
+        
+        for sublayer in self.sublayers.values():
+            if sublayer.removelayer(layer_id):
+                return True
+            
+        return False
+
     def findlayer(self, uniqueid):
         # must be a unique value or it will return the first instance it finds because im too lazy - retron
         for id in self._sublayerorder:
@@ -141,7 +190,7 @@ class CALayer:
         return None
 
     def create(self):
-        e = ET.Element('CALayer')
+        e = ET.Element(self.layer_class if self.layer_class else 'CALayer')
         e.set('id', self.id)
         e.set('name', self.name)
         e.set('position', " ".join(self.position))
@@ -162,23 +211,31 @@ class CALayer:
             e.set('backgroundColor', self.backgroundColor)
         if self.cornerRadius is not None:
             e.set('cornerRadius', self.cornerRadius)
-        
-        # Set layer class type if it exists
-        if self.layer_class is not None:
-            e.set('class', self.layer_class)
             
         # Handle CATextLayer specific properties
         if self.layer_class == "CATextLayer":
-            if hasattr(self, 'string') and self.string is not None:
-                e.set('string', self.string)
-            if hasattr(self, 'fontSize') and self.fontSize is not None:
-                e.set('fontSize', self.fontSize)
-            if hasattr(self, 'fontFamily') and self.fontFamily is not None:
-                e.set('fontFamily', self.fontFamily)
-            if hasattr(self, 'alignmentMode') and self.alignmentMode is not None:
-                e.set('alignmentMode', self.alignmentMode)
-            if hasattr(self, 'color') and self.color is not None:
-                e.set('color', self.color)
+            if hasattr(self, 'tracking'): e.set('tracking', self.tracking)
+            if hasattr(self, 'leading'): e.set('leading', self.leading)
+            if hasattr(self, 'verticalAlignmentMode'): e.set('verticalAlignmentMode', self.verticalAlignmentMode)
+            if hasattr(self, 'wrapped'): e.set('wrapped', self.wrapped)
+            if hasattr(self, 'resizingMode'): e.set('resizingMode', self.resizingMode)
+            if hasattr(self, 'allowsEdgeAntialiasing'): e.set('allowsEdgeAntialiasing', self.allowsEdgeAntialiasing)
+            if hasattr(self, 'allowsGroupOpacity'): e.set('allowsGroupOpacity', self.allowsGroupOpacity)
+            if hasattr(self, 'contentsFormat'): e.set('contentsFormat', self.contentsFormat)
+            if hasattr(self, 'cornerCurve'): e.set('cornerCurve', self.cornerCurve)
+            if hasattr(self, 'classIfAvailable'): e.set('classIfAvailable', self.classIfAvailable)
+
+            if hasattr(self, 'font'):
+                font_elem = ET.Element('font')
+                font_elem.set('type', 'string')
+                font_elem.set('value', self.font)
+                e.append(font_elem)
+            
+            if hasattr(self, 'string'):
+                string_elem = ET.Element('string')
+                string_elem.set('type', 'string')
+                string_elem.set('value', self.string)
+                e.append(string_elem)
 
         if self._content is not None:
             content = ET.SubElement(e, 'contents')

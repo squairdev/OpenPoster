@@ -4,8 +4,8 @@ import math
 from lib.ca_elements.core import CAFile, CALayer
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, QEvent, QVariantAnimation, QKeyCombination, QKeyCombination, QTimer, QSettings, QStandardPaths, QDir, QObject, QProcess, QByteArray, QBuffer, QIODevice, QXmlStreamReader, QPoint, QMimeData, QRegularExpression, QTranslator
-from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence, QAction, QCursor
-from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect, QMenu, QTreeWidgetItemIterator, QInputDialog
+from PySide6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QTransform, QPainter, QLinearGradient, QIcon, QPalette, QFont, QShortcut, QKeySequence, QAction, QCursor, QDesktopServices
+from PySide6.QtWidgets import QFileDialog, QTreeWidgetItem, QMainWindow, QTableWidgetItem, QGraphicsRectItem, QGraphicsPixmapItem, QGraphicsTextItem, QApplication, QHeaderView, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QTreeWidget, QWidget, QGraphicsItemAnimation, QMessageBox, QDialog, QColorDialog, QProgressDialog, QSizePolicy, QSplitter, QFrame, QToolButton, QGraphicsView, QGraphicsScene, QStyleFactory, QSpacerItem, QMenu, QLineEdit, QTableWidget, QTableWidgetItem, QSystemTrayIcon, QGraphicsProxyWidget, QGraphicsDropShadowEffect, QMenu, QTreeWidgetItemIterator, QInputDialog, QSlider, QTextEdit
 from ui.ui_mainwindow import Ui_OpenPoster
 from .custom_widgets import CustomGraphicsView, CheckerboardGraphicsScene
 import PySide6.QtCore as QtCore
@@ -27,6 +27,8 @@ from ._assets import Assets
 from .config_manager import ConfigManager
 from .settings_window import SettingsDialog
 from .exportoptions_window import ExportOptionsDialog
+from .theme_manager import ThemeManager
+from .preview_renderer import PreviewRenderer
 
 class MainWindow(QMainWindow):
     def __init__(self, config_manager, translator):
@@ -46,6 +48,7 @@ class MainWindow(QMainWindow):
         self.theme_change_callbacks = [] # For notifying dialogs of theme changes
 
         # app resources then load
+        self.initAssetFinder()
         self.bindOperationFunctions()
         self.loadIconResources()
 
@@ -53,12 +56,12 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         
         self.isMacOS = platform.system() == "Darwin"
-        if self.isMacOS:
-            self.setupSystemAppearanceDetection()
-        else:
-            self.detectDarkMode()
+        self.theme_manager = ThemeManager(self.config_manager, self)
+        self.theme_manager.load_theme()
         
         self.initUI()
+        
+        self.preview = PreviewRenderer(self)
         
         # Restore window geometry
         self.loadWindowGeometry()
@@ -70,6 +73,16 @@ class MainWindow(QMainWindow):
         # print(f"OpenPoster v{__version__} started") # Commented out startup message
 
     # app resources
+    def initAssetFinder(self):
+        if hasattr(sys, '_MEIPASS'):
+            self.app_base_path = sys._MEIPASS
+        else:
+            self.app_base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        
+        self.cachedImages = {}
+        self.missing_assets = set()
+        self.cafilepath = "" 
+
     def bindOperationFunctions(self):
         # TEMPORARY NAMES **not so temp now
         self._format = Format()
@@ -86,9 +99,9 @@ class MainWindow(QMainWindow):
         self.applyTransitionAnimationToPreview = self._applyAnimation.applyTransitionAnimationToPreview
         self.applySpringAnimationToItem = self._applyAnimation.applySpringAnimationToItem
 
-        self._Assets = Assets()
-        self.findAssetPath = self._Assets.findAssetPath
-        self.loadImage = self._Assets.loadImage
+        self._assets = Assets()
+        self.findAssetPath = self._assets.findAssetPath
+        self.loadImage = self._assets.loadImage
 
     def loadIconResources(self):
         self.editIcon = QIcon(":/icons/edit.svg")
@@ -136,421 +149,129 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, 'addButton'):
             self.ui.addButton.setIcon(self.addIconWhite if self.isDarkMode else self.addIcon)
 
-    # themes section
-    def detectDarkMode(self):
-        previous_dark_mode_state = getattr(self, 'isDarkMode', False)
-        new_dark_mode_detected = False
-        if platform.system() == 'Windows':
-            try:
-                import winreg
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize')
-                val = winreg.QueryValueEx(key, 'AppsUseLightTheme')[0]
-                new_dark_mode_detected = (val == 0)
-            except:
-                new_dark_mode_detected = False
-        else:
-            try:
-                app = QApplication.instance()
-                if app:
-                    text = app.palette().color(QPalette.Active, QPalette.WindowText)
-                    new_dark_mode_detected = (text.lightness() > 128)
-            except:
-                new_dark_mode_detected = False
-        self.isDarkMode = new_dark_mode_detected
-        if hasattr(self, 'ui') and previous_dark_mode_state != self.isDarkMode:
-            if self.isDarkMode:
-                self.applyDarkModeStyles()
-            else:
-                self.applyLightModeStyles()
-            self.updateCategoryHeaders()
-    
-    def updateCategoryHeaders(self):
-        if not hasattr(self, 'ui') or not hasattr(self.ui, 'tableWidget'):
-            return
-            
+    def loadThemeFromConfig(self):
+        theme = self.config_manager.get_config("ui_theme", "dark")
+        self.isDarkMode = theme == "dark"
         if self.isDarkMode:
-            bg_color = QColor(60, 60, 60)
-            text_color = QColor(230, 230, 230)
+            self.applyDarkModeStyles()
         else:
-            bg_color = QColor(220, 220, 220)
-            text_color = QColor(30, 30, 30)
-            
-        for row in range(self.ui.tableWidget.rowCount()):
-            item = self.ui.tableWidget.item(row, 0)
-            if item and self.ui.tableWidget.columnSpan(row, 0) > 1:
-                item.setBackground(bg_color)
-                item.setForeground(text_color)
-
-    def setupSystemAppearanceDetection(self):
-        try:
-            from Foundation import NSUserDefaults # type: ignore
-            self.macAppearanceObserver = NSUserDefaults.standardUserDefaults()
-            self.updateAppearanceForMac()
-            
-            self.app = QApplication.instance()
-            self.app.installEventFilter(self)
-        except ImportError:
-            print("Foundation module not available - dark mode detection limited")
-            self.detectDarkMode()
-    
-    def changeEvent(self, event: QtCore.QEvent):
-        # if event.type() == QEvent.ApplicationPaletteChange:
-        #     self.updateAppearanceForMac()
-        # if event.type() == QEvent.ApplicationFontChange:
-        #     self.updateCategoryHeaders()
-        if event.type() == QtCore.QEvent.LanguageChange:
-            # self.ui.retranslateUi(self)
-            self.retranslateUi()
-            self.updateCategoryHeaders()
-        super().changeEvent(event)
-    
-    def retranslateUi(self):
-        # super().retranslateUi(self);
-        self.ui.retranslateUi(self)
-        # :3
-        
-    def load_language(self, lang_code: str):
-        app = QApplication.instance()
-        if app is None:
-            print("Error: QApplication instance not found.")
-            return
-
-        if hasattr(app, 'translator') and app.translator is not None:
-            app.removeTranslator(app.translator)
-
-        if hasattr(sys, '_MEIPASS'):
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        
-        qm_dir_path = os.path.join(base_path, "languages")
-
-        new_translator = QTranslator()
-        loaded = False
-        if new_translator.load(f"app_{lang_code}", qm_dir_path):
-            app.installTranslator(new_translator)
-            app.translator = new_translator
-            loaded = True
-            print(f"Successfully loaded and installed translation for: {lang_code}")
-        else:
-            print(f"Failed to load translation for {lang_code} from {qm_dir_path}. Attempting fallback.")
-            if new_translator.load("app_en_US", qm_dir_path): 
-                app.installTranslator(new_translator)
-                app.translator = new_translator
-                loaded = True
-                print("Successfully loaded and installed fallback translation: en_US")
-            else:
-                print(f"Failed to load fallback translation from {qm_dir_path}.")
-        
-        if loaded:
-            QApplication.postEvent(self, QEvent(QEvent.LanguageChange))
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.ApplicationPaletteChange:
-            self.updateAppearanceForMac()
-        return super(MainWindow, self).eventFilter(obj, event)
-            
-    def updateAppearanceForMac(self):
-        previous_dark_mode = self.isDarkMode
-        # self.isDarkMode = False # Let's not reset it here, detect and then compare
-        
-        current_system_is_dark = False
-        try:
-            from Foundation import NSUserDefaults # type: ignore
-            appleInterfaceStyle = NSUserDefaults.standardUserDefaults().stringForKey_("AppleInterfaceStyle")
-            current_system_is_dark = appleInterfaceStyle == "Dark"
-            # print(f"[updateAppearanceForMac] AppleInterfaceStyle: {appleInterfaceStyle}, current_system_is_dark: {current_system_is_dark}")
-        except Exception as e:
-            # print(f"[updateAppearanceForMac] Error getting AppleInterfaceStyle: {e}. Falling back.")
-            app = QApplication.instance()
-            if app:
-                windowText = app.palette().color(QPalette.Active, QPalette.WindowText)
-                current_system_is_dark = windowText.lightness() > 128
-                # print(f"[updateAppearanceForMac] Fallback detection: lightness > 128 is {current_system_is_dark}")
-
-        print(f"[updateAppearanceForMac] Detected system dark mode: {current_system_is_dark}. Previous MainWindow.isDarkMode: {previous_dark_mode}")
-
-        if self.isDarkMode == current_system_is_dark and previous_dark_mode == current_system_is_dark:
-             # print("[updateAppearanceForMac] No change in effective theme or system theme. MainWindow.isDarkMode already aligned.")
-             # Still, ensure styles are applied if UI isn't fully constructed yet or needs refresh
-             if hasattr(self, 'ui'):
-                if self.isDarkMode:
-                    self.applyDarkModeStyles()
-                else:
-                    self.applyLightModeStyles()
-             # No need to call callbacks if no effective change from previous state
-             return
-
-        self.isDarkMode = current_system_is_dark # Update MainWindow state
-        print(f"[updateAppearanceForMac] MainWindow.isDarkMode is NOW: {self.isDarkMode}")
-        
-        if hasattr(self, 'ui'): 
-            if self.isDarkMode:
-                # print("[updateAppearanceForMac] Applying Dark Mode Styles")
-                self.applyDarkModeStyles()
-            else:
-                # print("[updateAppearanceForMac] Applying Light Mode Styles")
-                self.applyLightModeStyles()
-        
-        # Only call updateCategoryHeaders and callbacks if the effective theme of the window changed.
-        if previous_dark_mode != self.isDarkMode:
-            print(f"[updateAppearanceForMac] Effective theme changed from {previous_dark_mode} to {self.isDarkMode}. Updating headers and notifying callbacks.")
-            self.updateCategoryHeaders() 
-            for callback in self.theme_change_callbacks:
-                callback(self.isDarkMode)
-        else:
-            print(f"[updateAppearanceForMac] System theme might have changed to {current_system_is_dark}, but MainWindow.isDarkMode ({self.isDarkMode}) was already effectively this state. No callback spam.")
+            self.applyLightModeStyles()
+        self.updateButtonIcons()
+        self.theme_manager.update_category_headers()
 
     def applyDarkModeStyles(self):
-        if not hasattr(self, 'ui'): return
-
-        qss_path = self.findAssetPath("themes/dark_style.qss")
-        if not qss_path:
-            print("[MainWindow.applyDarkModeStyles] dark_style.qss not found; skipping QSS load")
-        else:
-            try:
-                print(f"[MainWindow.applyDarkModeStyles] QSS path from findAssetPath: {qss_path}")
-                with open(qss_path, "r") as f:
-                    self.ui.centralwidget.setStyleSheet(f.read())
-            except Exception as e:
-                print(f"Error applying dark_style.qss: {e}")
-
-        scene = self.scene if hasattr(self, 'scene') else None
-        if scene and isinstance(scene, CheckerboardGraphicsScene):
-            scene.setBackgroundColor(QColor(50, 50, 50), QColor(40, 40, 40))
-            scene.update()
-            
-        common_toolbar_button_style = "padding: 5px; border-radius: 3px; border: none; background-color: transparent;"
-
-        if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): # Check self.ui
-            self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(255, 255, 255, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(255,255,255,0.1); }} QPushButton:pressed {{ background-color: rgba(255,255,255,0.2); }}")
-
-        self.ui.tableWidget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                background-color: transparent;
-                gridline-color: transparent;
-                color: palette(text);
-            }
-            QTableWidget::item { 
-                padding: 8px;
-                min-height: 30px;
-            }
-            QTableWidget::item:first-column {
-                border-right: 1px solid rgba(180, 180, 180, 60);
-            }
-            QTableWidget::item:selected {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-            }
-        """)
-        
-        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: palette(button); /* Adapts to QSS */
-                color: palette(text); /* Adapts to QSS */
-                padding: 8px;
-                border: none;
-                border-right: 1px solid rgba(180, 180, 180, 60); /* Might need adjustment based on QSS */
-                border-bottom: none;
-            }
-        """)
-
-        # Style for QTreeWidget headers
-        tree_header_style = """
-            QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
-                padding: 2px;
-                border: none;
-                border-bottom: 1px solid palette(midlight);
-                border-right: 1px solid palette(midlight);
-            }
-            QHeaderView::section:first {
-                border-left: none;
-            }
-        """
-        if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
-            self.ui.treeWidget.header().setStyleSheet(tree_header_style)
-        if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
-            self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
-
-        self.updateButtonIcons() 
-        self.updateCategoryHeaders() 
-        self.ui.retranslateUi(self)
-
-        # Explicitly style problematic UI elements for dark mode
-        dark_border_color = "#606060"  # Mid-grey border
-        dark_button_bg_color = "#3A3A3A"
-        dark_button_hover_bg_color = "#4A4A4A"
-        dark_button_pressed_bg_color = "#5A5A5A"
-        dark_button_text_color = "#D0D0D0" # Light grey text for buttons
-        dark_general_text_color = "#B0B0B0" # Softer light grey for general labels
-
-        button_style_dark = (
-            f"QPushButton {{ "
-            f"border: 1px solid {dark_border_color}; "
-            f"border-radius: 6px; "
-            f"padding: 5px 10px; "
-            f"background-color: {dark_button_bg_color}; "
-            f"color: {dark_button_text_color}; "
-            f"}} "
-            f"QPushButton:hover {{ background-color: {dark_button_hover_bg_color}; }} "
-            f"QPushButton:pressed {{ background-color: {dark_button_pressed_bg_color}; }}"
-        )
-        if hasattr(self.ui, 'openFile'): self.ui.openFile.setStyleSheet(button_style_dark);
-        if hasattr(self.ui, 'exportButton'): self.ui.exportButton.setStyleSheet(button_style_dark);
-        
-        if hasattr(self.ui, 'filename'):
-            font_style_filename = "italic" if self.ui.filename.text() == "No File Open" else "normal"
-            filename_style_dark = (
-                f"font-style: {font_style_filename}; "
-                f"color: {dark_button_text_color}; " # Use button text color for prominence
-                f"border: 1.5px solid {dark_border_color}; "
-                f"border-radius: 8px; "
-                f"padding: 5px 10px;"
-            )
-            self.ui.filename.setStyleSheet(filename_style_dark)
-
-        if hasattr(self.ui, 'layersLabel'): self.ui.layersLabel.setStyleSheet(f"color: {dark_general_text_color};");
-        if hasattr(self.ui, 'statesLabel'): self.ui.statesLabel.setStyleSheet(f"color: {dark_general_text_color};");
-        if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {dark_general_text_color};");
-        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {dark_general_text_color};");
+        # Delegated to ThemeManager
+        self.theme_manager.apply_dark_mode_styles()
 
     def applyLightModeStyles(self):
-        if not hasattr(self, 'ui'): return
+        # Delegated to ThemeManager
+        self.theme_manager.apply_light_mode_styles()
 
-        qss_path = self.findAssetPath("themes/light_style.qss")
-        if not qss_path:
-            print("[MainWindow.applyLightModeStyles] light_style.qss not found; skipping QSS load")
-        else:
-            try:
-                with open(qss_path, "r") as f:
-                    self.ui.centralwidget.setStyleSheet(f.read())
-            except Exception as e:
-                print(f"Error applying light_style.qss: {e}")
+    def _get_all_layer_names(self, layer):
+        names = set()
+        if hasattr(layer, 'name') and layer.name:
+            names.add(layer.name)
+        if hasattr(layer, 'sublayers'):
+            for sublayer in layer.sublayers.values():
+                names.update(self._get_all_layer_names(sublayer))
+        return names
 
-        scene = self.scene if hasattr(self, 'scene') else None
-        if scene and isinstance(scene, CheckerboardGraphicsScene):
-            scene.setBackgroundColor(QColor(240, 240, 240), QColor(220, 220, 220))
-            scene.update()
-            
-        common_toolbar_button_style = "padding: 5px; border-radius: 3px; border: none; background-color: transparent;"
+    def _generate_unique_layer_name(self, base_name):
+        if not hasattr(self, 'cafile') or not self.cafile:
+            return base_name
 
-        if hasattr(self, 'ui') and hasattr(self.ui, 'playButton'): 
-            self.ui.playButton.setStyleSheet(f"QPushButton {{ color: rgba(0, 0, 0, 150); {common_toolbar_button_style} }} QPushButton:hover {{ background-color: rgba(0,0,0,0.1); }} QPushButton:pressed {{ background-color: rgba(0,0,0,0.2); }}")
-            
-            
-        self.ui.tableWidget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-                background-color: transparent;
-                gridline-color: transparent;
-                color: palette(text);
-            }
-            QTableWidget::item { 
-                padding: 8px;
-                min-height: 30px;
-            }
-            QTableWidget::item:first-column {
-                border-right: 1px solid rgba(120, 120, 120, 60);
-            }
-            QTableWidget::item:selected {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-            }
-        """)
+        all_names = self._get_all_layer_names(self.cafile.rootlayer)
         
-        self.ui.tableWidget.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: palette(button); /* Adapts to QSS */
-                color: palette(text); /* Adapts to QSS */
-                padding: 8px;
-                border: none;
-                border-right: 1px solid rgba(120, 120, 120, 60); /* Might need adjustment based on QSS */
-                border-bottom: none;
-            }
-        """)
-
-        # Style for QTreeWidget headers (same as dark for now, relies on palette)
-        tree_header_style = """
-            QHeaderView::section {
-                background-color: palette(button);
-                color: palette(text);
-                padding: 2px;
-                border: none;
-                border-bottom: 1px solid palette(midlight);
-                border-right: 1px solid palette(midlight);
-            }
-            QHeaderView::section:first {
-                border-left: none;
-            }
-        """
-        if hasattr(self.ui, 'treeWidget') and self.ui.treeWidget:
-            self.ui.treeWidget.header().setStyleSheet(tree_header_style)
-        if hasattr(self.ui, 'statesTreeWidget') and self.ui.statesTreeWidget:
-            self.ui.statesTreeWidget.header().setStyleSheet(tree_header_style)
-
-        self.updateButtonIcons() 
-        self.updateCategoryHeaders() 
-        self.ui.retranslateUi(self)
-
-        # Explicitly style problematic UI elements for light mode
-        light_border_color = "#A0A0A0"  # Mid-light grey border
-        light_button_bg_color = "#F0F0F0"
-        light_button_hover_bg_color = "#E0E0E0"
-        light_button_pressed_bg_color = "#D0D0D0"
-        light_button_text_color = "#303030" # Dark grey text for buttons
-        light_general_text_color = "#505050" # Softer dark grey for general labels
-
-        button_style_light = (
-            f"QPushButton {{ "
-            f"border: 1px solid {light_border_color}; "
-            f"border-radius: 6px; "
-            f"padding: 5px 10px; "
-            f"background-color: {light_button_bg_color}; "
-            f"color: {light_button_text_color}; "
-            f"}} "
-            f"QPushButton:hover {{ background-color: {light_button_hover_bg_color}; }} "
-            f"QPushButton:pressed {{ background-color: {light_button_pressed_bg_color}; }}"
-        )
-        if hasattr(self.ui, 'openFile'): self.ui.openFile.setStyleSheet(button_style_light);
-        if hasattr(self.ui, 'exportButton'): self.ui.exportButton.setStyleSheet(button_style_light);
-
-        if hasattr(self.ui, 'filename'):
-            font_style_filename = "italic" if self.ui.filename.text() == "No File Open" else "normal"
-            text_color_filename_light = "#666666" if font_style_filename == "italic" else light_button_text_color # Keep specific color for "No File Open"
-            filename_style_light = (
-                f"font-style: {font_style_filename}; "
-                f"color: {text_color_filename_light}; "
-                f"border: 1.5px solid {light_border_color}; "
-                f"border-radius: 8px; "
-                f"padding: 5px 10px;"
-            )
-            self.ui.filename.setStyleSheet(filename_style_light)
-
-        if hasattr(self.ui, 'layersLabel'): self.ui.layersLabel.setStyleSheet(f"color: {light_general_text_color};");
-        if hasattr(self.ui, 'statesLabel'): self.ui.statesLabel.setStyleSheet(f"color: {light_general_text_color};");
-        if hasattr(self.ui, 'inspectorLabel'): self.ui.inspectorLabel.setStyleSheet(f"color: {light_general_text_color};");
-        if hasattr(self.ui, 'previewLabel'): self.ui.previewLabel.setStyleSheet(f"color: {light_general_text_color};");
+        if base_name not in all_names:
+            return base_name
+        
+        counter = 2
+        while True:
+            new_name = f"{base_name} {counter}"
+            if new_name not in all_names:
+                return new_name
+            counter += 1
 
     def addlayer(self, **kwargs):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
-            QMessageBox.warning(self, "No File Open", "Please open or create a file before adding a layer.")
+            self.create_themed_message_box(
+                QMessageBox.Warning,
+                "No File Open", 
+                "Please open or create a file before adding a layer."
+            ).exec()
             return
+
+        base_name = kwargs.get("name", "New Layer")
+        unique_name = self._generate_unique_layer_name(base_name)
+        kwargs['name'] = unique_name
+        kwargs['id'] = unique_name
 
         layer = CALayer(**kwargs)
         layer_type = kwargs.get("type")
+
+        root_layer = self.cafile.rootlayer
+        if root_layer and hasattr(root_layer, 'bounds') and len(root_layer.bounds) == 4:
+            try:
+                root_bounds = [float(b) for b in root_layer.bounds]
+                root_width = root_bounds[2]
+                root_height = root_bounds[3]
+
+                new_height = root_height * 0.3
+                
+                if root_height > 0:
+                    aspect_ratio = root_width / root_height
+                    new_width = new_height * aspect_ratio
+                else:
+                    new_width = root_width * 0.3
+
+                center_x = root_width / 2
+                center_y = root_height / 2
+
+                layer.bounds = ['0', '0', str(new_width), str(new_height)]
+                layer.position = [str(center_x), str(center_y)]
+                layer.scale_factor = 0.3
+            except (ValueError, IndexError) as e:
+                print(f"Warning: Could not get root layer bounds to resize new layer: {e}")
+                pass
 
         if layer_type == "text":
             text, ok = QInputDialog.getText(self, "New Text Layer", "Enter text:", QLineEdit.Normal, getattr(layer, "string", ""))
             if not ok or not text:
                 return
             layer.string = text
+            
+            if not hasattr(layer, "fontSize") or not layer.fontSize:
+                root_height = float(root_layer.bounds[3])
+                default_font_size = int(root_height * 0.05 * 2)
+                layer.fontSize = str(default_font_size)
+            if not hasattr(layer, "fontFamily") or not layer.fontFamily:
+                layer.fontFamily = "Helvetica"
+            if not hasattr(layer, "alignmentMode") or not layer.alignmentMode:
+                layer.alignmentMode = "center"
+            if not hasattr(layer, "color") or not layer.color:
+                layer.color = "255 255 255"
+                
         elif layer_type == "image":
             image_path, _ = QFileDialog.getOpenFileName(self, "Select Image File", "", "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)")
             if not image_path:
                 return
+            
+            try:
+                image = QImage(image_path)
+                if not image.isNull():
+                    img_width = image.width()
+                    img_height = image.height()
+                    
+                    if img_height > 0:
+                        current_height = float(layer.bounds[3])
+                        
+                        aspect_ratio = img_width / img_height
+                        new_width = current_height * aspect_ratio
+                        
+                        layer.bounds[2] = str(new_width)
+            except Exception as e:
+                print(f"Could not resize image based on aspect ratio: {e}")
+
             layer.content.src = image_path
 
         if hasattr(self, "currentInspectObject"):
@@ -562,6 +283,7 @@ class MainWindow(QMainWindow):
         self.ui.treeWidget.clear()
         self.populateLayersTreeWidget()
         self.renderPreview(self.cafile.rootlayer)
+        self.markDirty()
 
     # gui loader section
     def initUI(self):
@@ -581,34 +303,10 @@ class MainWindow(QMainWindow):
         self.ui.exportButton.clicked.connect(self.exportFile)
 
         self.ui.addButton.setIcon(self.addIconWhite if self.isDarkMode else self.addIcon)
+        self.ui.addButton.setStyleSheet("QPushButton::menu-indicator { width: 0px; image: none; }")
 
         # i know we said we would make ui in QDesigner but i cant figure out how to do this sooo - retron
         self.add_menu_ui = QMenu(self)
-        # style
-        self.add_menu_ui.setStyleSheet("""
-            QMenu {
-                background-color: #4a4a4a;
-                border: 1px solid #6a6a6a;
-                border-radius: 8px;
-                padding: 5px;
-            }
-            QMenu::item {
-                background-color: transparent;
-                padding: 8px 20px;
-                margin: 2px;
-                border-radius: 5px;
-            }
-            QMenu::item:selected {
-                background-color: #5a5a5a;
-                color: white;
-            }
-            QMenu::separator {
-                height: 1px;
-                background: #6a6a6a;
-                margin-left: 10px;
-                margin-right: 5px;
-            }
-        """)
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(15)
@@ -633,26 +331,6 @@ class MainWindow(QMainWindow):
 
         self.ui.addButton.setMenu(self.add_menu_ui)
         self.ui.addButton.setEnabled(True)
-        self.ui.addButton.setStyleSheet("""
-            QPushButton {
-                border: 1px solid gray;
-                border-radius: 6px;
-                padding: 4px;
-                background-color: transparent;
-            }
-            QPushButton::menu-indicator {
-                image: none;
-                width: 0px;
-                margin: 0px;
-                padding: 0px;
-            }
-            QPushButton:hover {
-                background-color: rgba(128, 128, 128, 0.3);
-            }
-            QPushButton:pressed {
-                background-color: rgba(128, 128, 128, 0.5);
-            }
-        """)
 
         self.ui.openFile.clicked.connect(self.openFile)
         self.ui.treeWidget.currentItemChanged.connect(self.openInInspector)
@@ -663,12 +341,19 @@ class MainWindow(QMainWindow):
         self.showFullPath = True
         
         self.scene = CheckerboardGraphicsScene()
+        # Initialize animation helper now that scene exists
+        from ._applyanimation import ApplyAnimation
+        self._applyAnimation = ApplyAnimation(self.scene)
+        self.applyAnimationsToPreview = self._applyAnimation.applyAnimationsToPreview
+        self.applyKeyframeAnimationToItem = self._applyAnimation.applyKeyframeAnimationToItem
+        self.applyTransitionAnimationToPreview = self._applyAnimation.applyTransitionAnimationToPreview
+        self.applySpringAnimationToItem = self._applyAnimation.applySpringAnimationToItem
         orig_make_item = self.scene.makeItemEditable
         def makeItemEditable(item):
             editable = orig_make_item(item)
             if editable:
-                editable.itemChanged.connect(lambda it, item=item: self.onItemMoved(item))
-                editable.transformChanged.connect(lambda tr, item=item: self.onTransformChanged(item, tr))
+                editable.itemChanged.connect(self.onItemMoved)
+                editable.editFinished.connect(self.onTransformChanged)
             return editable
         self.scene.makeItemEditable = makeItemEditable
         self.ui.graphicsView.setScene(self.scene)
@@ -740,10 +425,11 @@ class MainWindow(QMainWindow):
         self.ui.statesTreeWidget.clear()
         if sys.platform == "darwin":
             self.cafilepath = QFileDialog.getOpenFileName(
-                self, "Select File", "", "Core Animation Files (*.ca)")[0]
+                self, "Select .ca File", "", "Core Animation Files (*.ca)")[0]
         else:
-            self.cafilepath = QFileDialog.getOpenFileName(
-                self, "Select Folder", "")
+            self.cafilepath = QFileDialog.getExistingDirectory(
+                self, "Select .ca File", "", QFileDialog.ShowDirsOnly
+            )
         
         if self.cafilepath:
             self.open_ca_file(self.cafilepath)
@@ -763,7 +449,11 @@ class MainWindow(QMainWindow):
             self.ui.addButton.setEnabled(True)
             self.updateFilenameDisplay()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not open file: {e}")
+            self.create_themed_message_box(
+                QMessageBox.Critical, 
+                "Error", 
+                f"Could not open file: {e}"
+            ).exec()
             self.markDirty()
 
     def populateLayersTreeWidget(self):
@@ -773,7 +463,7 @@ class MainWindow(QMainWindow):
             if len(self.cafile.rootlayer._sublayerorder) > 0:
                 self.treeWidgetChildren(rootItem, self.cafile.rootlayer)
 
-        self.ui.addButton.setEnabled(self.isDirty)
+        self.ui.addButton.setEnabled(hasattr(self, 'cafile') and self.cafile is not None)
 
     def fitPreviewToView(self):
         if not hasattr(self, 'cafilepath') or not self.cafilepath:
@@ -829,10 +519,6 @@ class MainWindow(QMainWindow):
             return
         self.ui.tableWidget.blockSignals(True)
         self.currentInspectObject = None
-
-        if hasattr(self.scene, 'currentEditableItem') and self.scene.currentEditableItem:
-            self.scene.currentEditableItem.removeBoundingBox()
-            self.scene.currentEditableItem = None
 
         self.currentSelectedItem = current
         self.ui.tableWidget.setRowCount(0)
@@ -1004,6 +690,12 @@ class MainWindow(QMainWindow):
                     bounds_str = self.formatPoint(" ".join(element.bounds))
                     self.add_inspector_row("BOUNDS", bounds_str, row_index)
                     row_index += 1
+                    
+                    if element.id != self.cafile.rootlayer.id:
+                        if not hasattr(element, "scale_factor"):
+                            element.scale_factor = 1.0
+                        self.add_inspector_row("SCALE", str(element.scale_factor), row_index)
+                        row_index += 1
                 
                 if hasattr(element, "frame") and element.frame:
                     frame_str = self.formatPoint(" ".join(element.frame))
@@ -1076,7 +768,11 @@ class MainWindow(QMainWindow):
                     row_index += 1
                 
                 if hasattr(element, "opacity") and element.opacity is not None:
-                    self.add_inspector_row("OPACITY", self.formatFloat(element.opacity), row_index)
+                    try:
+                        opacity_percent = int(float(element.opacity) * 100)
+                        self.add_inspector_row("OPACITY", str(opacity_percent), row_index)
+                    except (ValueError, TypeError):
+                        self.add_inspector_row("OPACITY", "100", row_index)
                     row_index += 1
                 
                 if hasattr(element, "mica_animatedAlpha") and element.mica_animatedAlpha is not None:
@@ -1270,15 +966,89 @@ class MainWindow(QMainWindow):
         
         value_str = str(value)
         
-        if isinstance(value, bool) or (isinstance(value_str, str) and value_str.lower() in ["yes", "no", "true", "false"]):
+        if key == "SCALE":
+            slider_widget = QWidget()
+            slider_layout = QHBoxLayout(slider_widget)
+            slider_layout.setContentsMargins(2, 2, 2, 2)
+            
+            scale_slider = QSlider(Qt.Horizontal)
+            scale_slider.setMinimum(10)  # 10% scale
+            scale_slider.setMaximum(200)  # 200% scale
+
+            current_scale = float(value_str)
+            scale_slider.setValue(int(current_scale * 100))
+            scale_slider.setTickPosition(QSlider.TicksBelow)
+            scale_slider.setTickInterval(10)
+            
+            scale_label = QLabel(f"{int(current_scale * 100)}%")
+            
+            def update_scale_label(value):
+                scale_label.setText(f"{value}%")
+                
+            update_timer = QTimer()
+            update_timer.setSingleShot(True)
+            update_timer.setInterval(50)
+                
+            def apply_scale(value):
+                scale_factor = value / 100.0
+                if hasattr(self, 'currentInspectObject') and self.currentInspectObject:
+                    layer = self.currentInspectObject
+                    if hasattr(layer, 'bounds'):
+                        try:
+                            layer.scale_factor = scale_factor
+                            
+                            root_layer = self.cafile.rootlayer
+                            root_width = float(root_layer.bounds[2])
+                            root_height = float(root_layer.bounds[3])
+                            
+                            is_text_layer = hasattr(layer, "layer_class") and layer.layer_class == "CATextLayer"
+                            
+                            if is_text_layer:
+                                base_font_size = root_height * 0.05
+                                new_font_size = base_font_size * scale_factor
+                                
+                                if hasattr(layer, "fontSize"):
+                                    layer.fontSize = str(int(new_font_size))
+                            else:
+                                target_height = root_height * scale_factor
+                                
+                                current_width = float(layer.bounds[2])
+                                current_height = float(layer.bounds[3])
+                                aspect_ratio = current_width / current_height if current_height > 0 else 1.0
+
+                                target_width = target_height * aspect_ratio
+
+                                layer.bounds[2] = str(target_width)
+                                layer.bounds[3] = str(target_height)
+
+                            if not update_timer.isActive():
+                                update_timer.timeout.connect(lambda: self.renderPreview(self.cafile.rootlayer))
+                                update_timer.start()
+                                
+                            self.markDirty()
+                        except (ValueError, IndexError) as e:
+                            print(f"Error applying scale: {e}")
+            
+            scale_slider.valueChanged.connect(update_scale_label)
+
+            scale_slider.valueChanged.connect(lambda value: apply_scale(value))
+            scale_slider.sliderReleased.connect(lambda: self.renderPreview(self.cafile.rootlayer))
+            
+            slider_layout.addWidget(scale_slider)
+            slider_layout.addWidget(scale_label)
+            
+            self.ui.tableWidget.setCellWidget(row_index, 1, slider_widget)
+        elif isinstance(value, bool) or (isinstance(value_str, str) and value_str.lower() in ["yes", "no", "true", "false"]):
             if isinstance(value, bool):
                 display_value = "Yes" if value else "No"
             else:
                 display_value = value_str.capitalize()
             value_item = QTableWidgetItem(display_value)
+            self.ui.tableWidget.setItem(row_index, 1, value_item)
             
         elif isinstance(value, (int, float)) or value_str.replace(".", "", 1).replace("-", "", 1).isdigit():
             value_item = QTableWidgetItem(self.formatFloat(value) if isinstance(value, (float)) else str(value))
+            self.ui.tableWidget.setItem(row_index, 1, value_item)
             
         elif value_str.startswith("#") and (len(value_str) == 7 or len(value_str) == 9):
             try:
@@ -1293,6 +1063,7 @@ class MainWindow(QMainWindow):
                     value_item = QTableWidgetItem(value_str)
             except:
                 value_item = QTableWidgetItem(value_str)
+            self.ui.tableWidget.setItem(row_index, 1, value_item)
                 
         elif isinstance(value_str, str) and " " in value_str and all(p.replace(".", "", 1).replace("-", "", 1).isdigit() for p in value_str.split()):
             try:
@@ -1300,365 +1071,43 @@ class MainWindow(QMainWindow):
                 if len(parts) == 2:
                     value_item = QTableWidgetItem(f"X: {self.formatFloat(float(parts[0]))}, Y: {self.formatFloat(float(parts[1]))}")
                 elif len(parts) == 4:
-                    value_item = QTableWidgetItem(f"X: {self.formatFloat(float(parts[0]))}, Y: {self.formatFloat(float(parts[1]))}, " +
-                                                 f"W: {self.formatFloat(float(parts[2]))}, H: {self.formatFloat(float(parts[3]))}")
+                    if key == "BOUNDS":
+                        value_item = QTableWidgetItem(f"W: {self.formatFloat(float(parts[2]))}, H: {self.formatFloat(float(parts[3]))}")
+                    else:
+                        value_item = QTableWidgetItem(f"X: {self.formatFloat(float(parts[0]))}, Y: {self.formatFloat(float(parts[1]))}, " +
+                                                     f"W: {self.formatFloat(float(parts[2]))}, H: {self.formatFloat(float(parts[3]))}")
                 elif len(parts) == 6:
                     value_item = QTableWidgetItem(f"[{self.formatFloat(float(parts[0]))} {self.formatFloat(float(parts[1]))} " +
                                                  f"{self.formatFloat(float(parts[2]))} {self.formatFloat(float(parts[3]))} " +
                                                  f"{self.formatFloat(float(parts[4]))} {self.formatFloat(float(parts[5]))}]")
                 else:
                     value_item = QTableWidgetItem(self.formatPoint(value_str))
+                self.ui.tableWidget.setItem(row_index, 1, value_item)
             except:
                 value_item = QTableWidgetItem(value_str)
+                self.ui.tableWidget.setItem(row_index, 1, value_item)
                 
         else:
             value_item = QTableWidgetItem(value_str)
-            
-        self.ui.tableWidget.setItem(row_index, 1, value_item)
+            self.ui.tableWidget.setItem(row_index, 1, value_item)
     
     # preview section
     def renderPreview(self, root_layer, target_state=None):
-        """Render the preview of the layer hierarchy with optional target state"""
-        # Clear previous animation buffers
-        if hasattr(self._applyAnimation, 'animations'):
-            self._applyAnimation.animations.clear()
-        # Also clear MainWindow animations list
-        self.animations = []
-        # Clear scene for fresh render
-        self.scene.clear()
-        
-        # Treat the root layer's top-left as (0,0)
-        default_x, default_y, default_w, default_h = 0, 0, 1000, 1000
-        try:
-            root_x = float(root_layer.bounds[0]) if hasattr(root_layer, "bounds") and root_layer.bounds else default_x
-            root_y = float(root_layer.bounds[1]) if hasattr(root_layer, "bounds") and root_layer.bounds else default_y
-            root_w = float(root_layer.bounds[2]) if hasattr(root_layer, "bounds") and root_layer.bounds else default_w
-            root_h = float(root_layer.bounds[3]) if hasattr(root_layer, "bounds") and root_layer.bounds else default_h
-        except (ValueError, IndexError):
-            root_x, root_y, root_w, root_h = default_x, default_y, default_w, default_h
-        bounds = QRectF(0, 0, root_w, root_h)
-        
-        border_rect = QGraphicsRectItem(bounds)
-        border_rect.setPen(QPen(QColor(0, 0, 0), 2))
-        border_rect.setBrush(QBrush(Qt.transparent))
-        self.scene.addItem(border_rect)
-        
-        base_state = None
-        if hasattr(root_layer, "states") and root_layer.states and "Base State" in root_layer.states:
-            base_state = root_layer.states["Base State"]
-        
-        root_pos = QPointF(0, 0)
-        
-        self.renderLayer(root_layer, root_pos, QTransform(), base_state, target_state)
-        
-        all_items_rect = self.scene.itemsBoundingRect()
-        self.scene.setSceneRect(all_items_rect)
-        # Capture all animations applied during this render
-        if hasattr(self._applyAnimation, 'animations'):
-            self.animations = list(self._applyAnimation.animations)
+        anims = self.preview.render_preview(root_layer, target_state)
+        self.animations = anims
+        return anims
 
     def renderLayer(self, layer, parent_pos, parent_transform, base_state=None, target_state=None):
-        if hasattr(layer, "hidden") and layer.hidden:
-            return
-        if layer.id == self.cafile.rootlayer.id:
-            for layer_id in layer._sublayerorder:
-                sublayer = layer.sublayers.get(layer_id)
-                if sublayer:
-                    self.renderLayer(sublayer, QPointF(0, 0), parent_transform, base_state, target_state)
-            return
-
-        absolute_position = QPointF(parent_pos)
-        layer_position = QPointF(0, 0)
-        
-        if hasattr(layer, "position") and layer.position:
-            try:
-                layer_position = QPointF(float(layer.position[0]), float(layer.position[1]))
-            except (ValueError, IndexError):
-                pass
-        
-        bounds = QRectF(0, 0, 100, 100)
-        if hasattr(layer, "bounds") and layer.bounds:
-            try:
-                x = float(layer.bounds[0])
-                y = float(layer.bounds[1])
-                w = float(layer.bounds[2])
-                h = float(layer.bounds[3])
-                bounds = QRectF(x, y, w, h)
-            except (ValueError, IndexError):
-                pass
-        
-        transform = QTransform(parent_transform)
-        if hasattr(layer, "transform") and layer.transform:
-            layer_transform = self.parseTransform(layer.transform)
-            transform = transform * layer_transform
-        
-        anchor_point = QPointF(0.5, 0.5)
-        if hasattr(layer, "anchorPoint") and layer.anchorPoint:
-            try:
-                anchor_parts = layer.anchorPoint.split(" ")
-                if len(anchor_parts) >= 2:
-                    anchor_point = QPointF(float(anchor_parts[0]), float(anchor_parts[1]))
-            except:
-                pass
-        
-        z_position = 0
-        if hasattr(layer, "zPosition") and layer.zPosition:
-            try:
-                z_position = float(layer.zPosition)
-            except (ValueError, TypeError):
-                pass
-        
-        opacity = 1.0
-        if hasattr(layer, "opacity") and layer.opacity is not None:
-            try:
-                opacity = float(layer.opacity)
-            except (ValueError, TypeError):
-                pass
-        
-        background_color = None
-        if hasattr(layer, "backgroundColor") and layer.backgroundColor:
-            background_color = self.parseColor(layer.backgroundColor)
-        
-        corner_radius = 0
-        if hasattr(layer, "cornerRadius") and layer.cornerRadius:
-            try:
-                corner_radius = float(layer.cornerRadius)
-            except (ValueError, TypeError):
-                pass
-        
-        if base_state and hasattr(base_state, "elements"):
-            for element in base_state.elements:
-                if element.__class__.__name__ == "LKStateSetValue" and element.targetId == layer.id:
-                    if element.keyPath == "position.x" and element.value:
-                        try:
-                            layer_position.setX(float(element.value))
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "position.y" and element.value:
-                        try:
-                            layer_position.setY(float(element.value))
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "transform" and element.value:
-                        transform = self.parseTransform(element.value) * parent_transform
-                    elif element.keyPath == "opacity" and element.value:
-                        try:
-                            opacity = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "zPosition" and element.value:
-                        try:
-                            z_position = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "backgroundColor" and element.value:
-                        background_color = self.parseColor(element.value)
-                    elif element.keyPath == "cornerRadius" and element.value:
-                        try:
-                            corner_radius = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-        
-        if target_state and hasattr(target_state, "elements"):
-            for element in target_state.elements:
-                if element.__class__.__name__ == "LKStateSetValue" and element.targetId == layer.id:
-                    if element.keyPath == "position.x" and element.value:
-                        try:
-                            layer_position.setX(float(element.value))
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "position.y" and element.value:
-                        try:
-                            layer_position.setY(float(element.value))
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "transform" and element.value:
-                        transform = self.parseTransform(element.value) * parent_transform
-                    elif element.keyPath == "opacity" and element.value:
-                        try:
-                            opacity = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "zPosition" and element.value:
-                        try:
-                            z_position = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-                    elif element.keyPath == "backgroundColor" and element.value:
-                        background_color = self.parseColor(element.value)
-                    elif element.keyPath == "cornerRadius" and element.value:
-                        try:
-                            corner_radius = float(element.value)
-                        except (ValueError, TypeError):
-                            pass
-        
-        has_content = False
-        missing_asset = False
-        
-        is_text_layer = hasattr(layer, "layer_class") and layer.layer_class == "CATextLayer"
-        
-        if is_text_layer:
-            text_item = QGraphicsTextItem()
-            text = layer.string if hasattr(layer, "string") and layer.string else "Text Layer"
-            text_item.setPlainText(text)
-            
-            if hasattr(layer, "fontSize") and layer.fontSize:
-                try:
-                    font = text_item.font()
-                    font_size = float(layer.fontSize)
-                    font.setPointSizeF(font_size)
-                    text_item.setFont(font)
-                except (ValueError, TypeError):
-                    pass
-            
-            if hasattr(layer, "fontFamily") and layer.fontFamily:
-                font = text_item.font()
-                font.setFamily(layer.fontFamily)
-                text_item.setFont(font)
-            
-            if hasattr(layer, "color") and layer.color:
-                color = self.parseColor(layer.color)
-                if color:
-                    text_item.setDefaultTextColor(color)
-            
-            text_item.setTransformOriginPoint(bounds.width() * anchor_point.x(),
-                                         bounds.height() * anchor_point.y())
-            pos_x = layer_position.x() - bounds.width() * anchor_point.x()
-            pos_y = layer_position.y() - bounds.height() * anchor_point.y()
-            text_item.setPos(pos_x, pos_y)
-            text_item.setTransform(transform)
-            text_item.setZValue(z_position)
-            text_item.setOpacity(opacity)
-            
-            text_item.setData(0, layer.id)
-            text_item.setData(1, "Layer")
-            self.scene.addItem(text_item)
-            has_content = True
-            
-            self.applyDefaultAnimationsToLayer(layer, text_item)
-            
-        elif hasattr(layer, "_content") and layer._content is not None:
-            if hasattr(layer, "content") and hasattr(layer.content, "src"):
-                src_path = layer.content.src
-                # umm...
-                self._Assets.cafilepath = self.cafilepath
-                self._Assets.cachedImages = self.cachedImages
-                pixmap = self.loadImage(src_path)
-                self.cachedImages = self._Assets.cachedImages
-                
-                if not pixmap and hasattr(self, 'missing_assets') and src_path in self.missing_assets:
-                    missing_asset = True
-                    
-                if pixmap:
-                    pixmap_item = QGraphicsPixmapItem()
-                    pixmap_item.setPixmap(pixmap)
-
-                    scale_x = bounds.width() / pixmap.width() if pixmap.width() > 0 else 1.0
-                    scale_y = bounds.height() / pixmap.height() if pixmap.height() > 0 else 1.0
-                    item_transform = QTransform()
-                    item_transform.scale(scale_x, scale_y)
-                    pixmap_item.setTransform(item_transform * transform)
-
-                    scaled_width = pixmap.width() * scale_x
-                    scaled_height = pixmap.height() * scale_y
-                    pixmap_item.setTransformOriginPoint(scaled_width * anchor_point.x(),
-                                                        scaled_height * anchor_point.y())
-
-                    pos_x = layer_position.x() - scaled_width * anchor_point.x()
-                    pos_y = layer_position.y() - scaled_height * anchor_point.y()
-                    pixmap_item.setPos(pos_x, pos_y)
-
-                    pixmap_item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-                    pixmap_item.setZValue(z_position)
-                    pixmap_item.setOpacity(opacity)
-                    pixmap_item.setData(0, layer.id)
-                    pixmap_item.setData(1, "Layer")
-                    self.scene.addItem(pixmap_item)
-                    has_content = True
-                    
-                    self.applyDefaultAnimationsToLayer(layer, pixmap_item)
-        
-        if not has_content:
-            rect_item = QGraphicsRectItem()
-            rect_item.setRect(bounds)
-            rect_item.setTransformOriginPoint(bounds.width() * anchor_point.x(),
-                                             bounds.height() * anchor_point.y())
-            
-            pos_x = layer_position.x() - bounds.width() * anchor_point.x()
-            pos_y = layer_position.y() - bounds.height() * anchor_point.y()
-            
-            rect_item.setPos(pos_x, pos_y)
-            rect_item.setTransform(transform)
-            rect_item.setZValue(z_position)
-            rect_item.setOpacity(opacity)
-            
-            pen = QPen(QColor(200, 200, 200, 180), 1.0)
-            brush = QBrush(QColor(180, 180, 180, 30))
-            
-            if layer.id == self.cafile.rootlayer.id:
-                pen = QPen(QColor(0, 0, 0, 200), 1.5)
-                brush = QBrush(Qt.transparent)
-            
-            if missing_asset:
-                pen = QPen(QColor(255, 0, 0, 200), 2.0)
-                brush = QBrush(QColor(255, 200, 200, 30))
-            
-            if background_color:
-                brush = QBrush(background_color)
-            
-            if corner_radius > 0:
-                pen.setStyle(Qt.PenStyle.DashLine)
-            
-            rect_item.setPen(pen)
-            rect_item.setBrush(brush)
-            rect_item.setData(0, layer.id)
-            rect_item.setData(1, "Layer")
-            self.scene.addItem(rect_item)
-            
-            self.applyDefaultAnimationsToLayer(layer, rect_item)
-            
-            if layer.id != self.cafile.rootlayer.id:
-                name_item = QGraphicsTextItem(layer.name)
-                name_item.setPos(rect_item.pos() + QPointF(5, 5))
-                name_item.setDefaultTextColor(QColor(60, 60, 60))
-                name_item.setData(0, layer.id + "_name")
-                name_item.setTransform(transform)
-                name_item.setZValue(z_position + 0.1)
-                self.scene.addItem(name_item)
-        
-        if hasattr(layer, "_sublayerorder") and layer._sublayerorder:
-            for layer_id in layer._sublayerorder:
-                sublayer = layer.sublayers.get(layer_id)
-                if sublayer:
-                    self.renderLayer(sublayer, layer_position, transform, base_state, target_state)
+        return self.preview.render_layer(layer, parent_pos, parent_transform, base_state, target_state)
     
     def applyDefaultAnimationsToLayer(self, layer, item):
-        if not hasattr(layer, "animations") or not layer.animations:
-            return
-            
-        for animation in layer.animations:
-            if animation.type == "CAKeyframeAnimation":
-                self.applyKeyframeAnimationToItem(item, animation.keyPath, animation)
+        return self.preview.apply_default_animations(layer, item)
     
     def highlightLayerInPreview(self, layer):
-        self.scene.clearSelection()
-        for item in self.scene.items():
-            if hasattr(item, "data") and item.data(0) == layer.id and item.data(1) == "Layer":
-                if isinstance(item, QGraphicsRectItem):
-                    if layer.id == self.cafile.rootlayer.id:
-                        item.setPen(QPen(QColor(0, 120, 215, 255), 2))
-                    else:
-                        item.setPen(QPen(QColor(0, 120, 215, 200), 1.5))
-                    item.setSelected(True)
-                    self.ui.graphicsView.centerOn(item)
-                
-        if layer.id is not None:
-            for item in self.scene.items():
-                if hasattr(item, "data") and item.data(0) == layer.id + "_name":
-                    item.setDefaultTextColor(QColor(0, 120, 215))
+        return self.preview.highlight_layer(layer)
     
     def highlightAnimationInPreview(self, layer, animation):
-        self.highlightLayerInPreview(layer)
+        return self.preview.highlight_animation(layer, animation)
 
     def populateStatesTreeWidget(self):
         if not hasattr(self, 'cafile') or not self.cafile:
@@ -2159,32 +1608,16 @@ class MainWindow(QMainWindow):
         play_pause_shortcut.activated.connect(self.toggleAnimations)
         self.shortcuts_list.append(play_pause_shortcut)
 
+        delete_layer_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)
+        delete_layer_shortcut.activated.connect(self.delete_selected_layer)
+        self.shortcuts_list.append(delete_layer_shortcut)
+
     # settings section
     def showSettingsDialog(self):
-        dialog = SettingsDialog(self, self.config_manager)
-        if dialog.exec() == QDialog.Accepted:
+        if hasattr(self, 'config_manager'):
+            settings_dialog = SettingsDialog(self, self.config_manager)
+            settings_dialog.exec()
             self.setupShortcuts()
-            # Theme update logic based on config
-            current_theme_preference = self.config_manager.get_config("ui_theme", "system")
-            if current_theme_preference == "dark":
-                if not self.isDarkMode:
-                    self.isDarkMode = True # Update state before applying
-                    self.applyDarkModeStyles()
-                    self.updateCategoryHeaders()
-                    # Notify callbacks
-                    for callback in self.theme_change_callbacks:
-                        callback(self.isDarkMode)
-            elif current_theme_preference == "light":
-                if self.isDarkMode:
-                    self.isDarkMode = False # Update state before applying
-                    self.applyLightModeStyles()
-                    self.updateCategoryHeaders()
-                    # Notify callbacks
-                    for callback in self.theme_change_callbacks:
-                        callback(self.isDarkMode)
-            else: # System theme
-                # Re-detect system theme. This will trigger updates if different.
-                self.detectDarkMode() # This internally calls applyXStyles, updateButtonIcons, updateCategoryHeaders and notifies callbacks if mode changed
 
     def apply_default_sizes(self):
         if hasattr(self, 'ui') and hasattr(self.ui, 'mainSplitter'):
@@ -2239,12 +1672,14 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if getattr(self, 'isDirty', False):
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Unsaved Changes")
-            msg.setText("You have unsaved changes. Are you sure you want to discard them and exit?")
+            msg = self.create_themed_message_box(
+                QMessageBox.Question, 
+                "Unsaved Changes",
+                "You have unsaved changes. Are you sure you want to discard them and exit?",
+                QMessageBox.Yes | QMessageBox.No
+            )
             pix = QPixmap(":/assets/openposter.png")
             msg.setIconPixmap(pix.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             msg.setDefaultButton(QMessageBox.No)
             reply = msg.exec()
             if reply != QMessageBox.Yes:
@@ -2312,7 +1747,11 @@ class MainWindow(QMainWindow):
         webbrowser.open("https://discord.gg/t3abQJjHm6")
     def exportFile(self):
         if not hasattr(self, 'cafile') or not self.cafile:
-            QMessageBox.warning(self, "No File Open", "Please open a file before exporting.")
+            self.create_themed_message_box(
+                QMessageBox.Warning,
+                "No File Open", 
+                "Please open a file before exporting."
+            ).exec()
             return
 
         dialog = ExportOptionsDialog(self, self.config_manager) # Pass config_manager
@@ -2431,16 +1870,29 @@ class MainWindow(QMainWindow):
 
     def onItemMoved(self, item):
         layer_id = item.data(0)
+        if not layer_id: return
         layer = self.cafile.rootlayer.findlayer(layer_id)
         if layer:
             pos = item.pos()
-            layer.position = [str(pos.x()), str(pos.y())]
-            scene_rect = item.mapToScene(item.boundingRect()).boundingRect()
+            
+            scene_rect = item.sceneBoundingRect()
             w = scene_rect.width()
             h = scene_rect.height()
-            x0, y0 = layer.bounds[0], layer.bounds[1]
-            layer.bounds = [x0, y0, str(w), str(h)]
-        
+            
+            x0, y0 = (float(b) for b in layer.bounds[:2])
+            
+            layer.bounds = [str(x0), str(y0), str(w), str(h)]
+
+            layer.position = [str(pos.x()), str(pos.y())]
+
+            m11 = item.transform().m11()
+            m12 = item.transform().m12()
+            m21 = item.transform().m21()
+            m22 = item.transform().m22()
+            dx = item.transform().dx()
+            dy = item.transform().dy()
+            layer.transform = f"{m11} {m12} {m21} {m22} {dx} {dy}"
+
         if hasattr(self, 'currentInspectObject') and self.currentInspectObject == layer:
             self.ui.tableWidget.blockSignals(True)
             for r in range(self.ui.tableWidget.rowCount()):
@@ -2452,77 +1904,90 @@ class MainWindow(QMainWindow):
                     self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.position)))
                 elif key == 'BOUNDS':
                     self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.bounds)))
+                elif key == 'TRANSFORM' and layer.transform:
+                    self.ui.tableWidget.item(r, 1).setText(self.formatPoint(layer.transform))
             self.ui.tableWidget.blockSignals(False)
         self.markDirty()
 
-    def onTransformChanged(self, item, transform):
-        layer_id = item.data(0)
-        layer = self.cafile.rootlayer.findlayer(layer_id)
-        if layer:
-            scene_rect = item.mapToScene(item.boundingRect()).boundingRect()
-            w = scene_rect.width()
-            h = scene_rect.height()
-            x0, y0 = layer.bounds[0], layer.bounds[1]
-            layer.bounds = [x0, y0, str(w), str(h)]
-            layer.transform = None
-        
-        if hasattr(self, 'currentInspectObject') and self.currentInspectObject == layer:
-            self.ui.tableWidget.blockSignals(True)
-            for r in range(self.ui.tableWidget.rowCount()):
-                label = self.ui.tableWidget.item(r, 0)
-                if label and label.text() == 'BOUNDS':
-                    self.ui.tableWidget.item(r, 1).setText(self.formatPoint(' '.join(layer.bounds)))
-                    break
-            self.ui.tableWidget.blockSignals(False)
-            self.renderPreview(self.cafile.rootlayer)
-            self.fitPreviewToView()
+    def onTransformChanged(self, item):
         self.markDirty()
 
     def onInspectorChanged(self, item):
-        if item.column() != 1:
+        if not self.currentInspectObject or not self.ui.tableWidget.isEnabled():
             return
-            
-        self.ui.tableWidget.blockSignals(True)
-        obj = getattr(self, 'currentInspectObject', None)
-        if obj is None:
-            self.ui.tableWidget.blockSignals(False)
+
+        row = item.row()
+        key_item = self.ui.tableWidget.item(row, 0)
+        if not key_item:
             return
-            
-        key = self.ui.tableWidget.item(item.row(), 0).text()
-        val = item.text()
-        parts = key.lower().split()
-        xml_key = parts[0] + ''.join(p.capitalize() for p in parts[1:])
-        
-        if not hasattr(obj, xml_key):
-            self.ui.tableWidget.blockSignals(False)
-            return
-            
-        orig_val = getattr(obj, xml_key)
-        if isinstance(orig_val, list):
-            nums = re.findall(r'-?\d+\.?\d*', str(val))
-            setattr(obj, xml_key, nums)
-        else:
-            setattr(obj, xml_key, val)
-        
-        self.ui.tableWidget.blockSignals(False)
-        self.markDirty()
-        
-        if xml_key in ['position', 'bounds', 'transform', 'opacity', 'backgroundColor', 'cornerRadius']:
-            if hasattr(self, 'scene') and self.scene:
-                for item_in_scene in self.scene.items():
-                    if hasattr(item_in_scene, "data") and item_in_scene.data(0) == obj.id and item_in_scene.data(1) == "Layer":
-                        if xml_key == 'position' and hasattr(obj, 'position') and obj.position:
-                            try:
-                                x = float(obj.position[0])
-                                y = float(obj.position[1])
-                                item_in_scene.setPos(x, y)
-                                editable = self.scene.editableItems.get(id(item_in_scene))
-                                if editable:
-                                    editable.updateBoundingBox()
-                            except (ValueError, IndexError):
-                                pass
-                        break
-            self.renderPreview(self.cafile.rootlayer)
+
+        key = key_item.text()
+        value = item.text()
+
+        if hasattr(self, 'currentInspectObject') and self.currentInspectObject:
+            if self.currentInspectObject.__class__.__name__ == "CALayer":
+                if key == 'NAME':
+                    self.currentInspectObject.name = value
+                    # Update tree widget
+                    selected_item = self.ui.treeWidget.currentItem()
+                    if selected_item:
+                        selected_item.setText(0, value)
+                elif key == 'POSITION':
+                    self.currentInspectObject.position = value.split(" ")
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'BOUNDS':
+                    self.currentInspectObject.bounds = value.split(" ")
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'ANCHOR POINT':
+                    self.currentInspectObject.anchorPoint = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'Z-POSITION':
+                    self.currentInspectObject.zPosition = value
+                elif key == 'OPACITY':
+                    try:
+                        clean_value = item.text().strip().replace('%', '')
+                        if not clean_value:
+                            return
+
+                        percent_val = float(clean_value)
+                        backend_val = max(0.0, min(100.0, percent_val)) / 100.0
+                        
+                        self.currentInspectObject.opacity = f"{backend_val:.2f}"
+                        
+                        self.ui.tableWidget.blockSignals(True)
+                        item.setText(str(int(backend_val * 100)))
+                        self.ui.tableWidget.blockSignals(False)
+                        
+                        self.renderPreview(self.cafile.rootlayer)
+                    except ValueError:
+                        pass
+                elif key == 'BACKGROUND COLOR':
+                    color = QColorDialog.getColor(self.parseColor(item.text()), self, "Select Color")
+                    if color.isValid():
+                        color_str = f"{color.redF()} {color.greenF()} {color.blueF()} {color.alphaF()}"
+                        self.currentInspectObject.backgroundColor = color_str
+                        item.setText(self.formatColor(color_str))
+                        self.renderPreview(self.cafile.rootlayer)
+                elif key == 'CORNER RADIUS':
+                    self.currentInspectObject.cornerRadius = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'STRING':
+                    self.currentInspectObject.string = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'FONT SIZE':
+                    self.currentInspectObject.fontSize = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'FONT FAMILY':
+                    self.currentInspectObject.fontFamily = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'ALIGNMENT MODE':
+                    self.currentInspectObject.alignmentMode = value
+                    self.renderPreview(self.cafile.rootlayer)
+                elif key == 'COLOR':
+                    self.currentInspectObject.color = value
+                    self.renderPreview(self.cafile.rootlayer)
+                
+            self.markDirty()
 
     def zoomIn(self):
         self.ui.graphicsView.handleZoom(120)
@@ -2538,6 +2003,11 @@ class MainWindow(QMainWindow):
                 return
             if event.key() in (Qt.Key_Minus, Qt.Key_Underscore): # Removed Qt.KeypadMinus
                 self.zoomOut()
+                return
+        if event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
+            focused_widget = QApplication.focusWidget()
+            if not isinstance(focused_widget, (QLineEdit, QTextEdit)):
+                self.delete_selected_layer()
                 return
         super(MainWindow, self).keyPressEvent(event)
 
@@ -2575,9 +2045,6 @@ class MainWindow(QMainWindow):
         os.makedirs(export_dir, exist_ok=True)
 
     def open_project(self, path):
-        """
-        Open a .ca project from the given path (used for macOS file association).
-        """
         if not path or not os.path.exists(path):
             QMessageBox.warning(self, "Open Error", f"The file or folder does not exist: {path}")
             return
@@ -2628,3 +2095,43 @@ class MainWindow(QMainWindow):
         process.finished.connect(self._on_nugget_finished)
         process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
         process.start()
+
+        process.errorOccurred.connect(lambda error: QMessageBox.critical(self, "Nugget Error", f"Nugget execution error: {error}"))
+        process.start()
+
+    def create_themed_message_box(self, icon, title, text, buttons=QMessageBox.Ok, parent=None):
+        msg_box = QMessageBox(icon, title, text, buttons, parent or self)
+        
+        if hasattr(self, '_current_qss'):
+            msg_box.setStyleSheet(self._current_qss)
+            
+        return msg_box
+
+    def delete_selected_layer(self):
+        selected_items = self.ui.treeWidget.selectedItems()
+        if not selected_items:
+            return
+
+        selected_item = selected_items[0]
+        layer_id = selected_item.text(2)
+
+        if not layer_id or not hasattr(self, 'cafile') or not self.cafile:
+            return
+
+        if layer_id == self.cafile.rootlayer.id:
+            return
+
+        reply = QMessageBox.question(self, 'Delete Layer',
+                                     f"Are you sure you want to delete the layer '{selected_item.text(0)}'?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.cafile.rootlayer.removelayer(layer_id):
+                (selected_item.parent() or self.ui.treeWidget.invisibleRootItem()).removeChild(selected_item)
+
+                if hasattr(self, 'currentInspectObject') and self.currentInspectObject and self.currentInspectObject.id == layer_id:
+                    self.ui.tableWidget.setRowCount(0)
+                    self.currentInspectObject = None
+                
+                self.renderPreview(self.cafile.rootlayer)
+                self.markDirty()

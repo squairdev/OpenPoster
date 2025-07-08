@@ -105,7 +105,11 @@ jobs:
         if: matrix.config.name == 'windows'
         run: |
           cd dist
-          Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.config.name }}.zip"
+          if (Test-Path -Path "OpenPoster" -PathType Container) {
+            Compress-Archive -Path OpenPoster -DestinationPath "OpenPoster-${{ matrix.config.name }}.zip"
+          } else {
+            Compress-Archive -Path OpenPoster.exe -DestinationPath "OpenPoster-${{ matrix.config.name }}.zip"
+          }
 
       - name: Zip (macOS)
         if: matrix.config.name != 'windows'
